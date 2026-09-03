@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fetchly — Save videos as MP4 or MP3, fast and free</title>
+    <meta
+      name="description"
+      content="Paste a link from YouTube, TikTok or Instagram, pick your format and quality, and download MP4 or MP3 in seconds. No account needed."
+    />
+    <link rel="canonical" href="https://fetchly.example.com/" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Fetchly" />
+    <meta property="og:title" content="Fetchly — Save videos as MP4 or MP3" />
+    <meta
+      property="og:description"
+      content="Paste a link, choose your format and quality, download. Simple, fast, and private."
+    />
+    <meta property="og:url" content="https://fetchly.example.com/" />
+    <meta property="og:image" content="https://fetchly.example.com/og-cover.png" />
+
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Fetchly — Save videos as MP4 or MP3" />
+    <meta
+      name="twitter:description"
+      content="Paste a link, choose your format and quality, download. Simple, fast, and private."
+    />
+    <meta name="twitter:image" content="https://fetchly.example.com/og-cover.png" />
+
+    <meta name="theme-color" content="#00C9A7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0B0F0E" media="(prefers-color-scheme: dark)" />
+
+    <!-- Apply the saved theme before first paint (no flash of wrong theme). -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('fetchly-theme');
+          var dark =
+            saved === 'dark' ||
+            (saved !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.classList.toggle('dark', dark);
+        } catch (e) {
+          /* private mode etc. — fall back to light */
+        }
+      })();
+    </script>
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Fetchly",
+        "applicationCategory": "MultimediaApplication",
+        "operatingSystem": "Any",
+        "description": "Save public videos from supported platforms as MP4 or MP3.",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

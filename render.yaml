@@ -1,0 +1,33 @@
+# Render blueprint — free-tier hosting for the Fetchly API.
+# Docs: https://render.com/docs/blueprint-spec
+#
+# Usage: push this repo to GitHub, then in Render choose
+# "New +" → "Blueprint" → select the repo. Render builds the Docker image
+# (which bundles FFmpeg + yt-dlp) and runs the API on a free web service.
+#
+# After it deploys, set the real CLIENT_URL (your Netlify site URL) in the
+# service's Environment tab and redeploy.
+
+services:
+  - type: web
+    name: fetchly-api
+    runtime: docker
+    dockerfilePath: server/Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Replace with your frontend URL after deploying the site (Netlify).
+      - key: CLIENT_URL
+        value: https://fetchly-site.netlify.app
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        value: admin@fetchly.local
+      - key: ADMIN_PASSWORD
+        generateValue: true
+      # No DATABASE_URL / REDIS_URL on purpose: the free tier uses the
+      # built-in memory datastore + in-process queue. Add a free-tier
+      # MySQL/Redis later if you want persistence.

@@ -1,0 +1,128 @@
+// Fetchly database schema (MySQL in production; see database/migrations for the
+// canonical SQL. Prisma manages migrations via `prisma migrate`).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum JobStatus {
+  QUEUED
+  ANALYZING
+  DOWNLOADING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  EXPIRED
+}
+
+model User {
+  id           String        @id @default(uuid())
+  name         String
+  email        String        @unique
+  passwordHash String        @map("password_hash")
+  role         Role          @default(USER)
+  status       UserStatus    @default(ACTIVE)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  downloadJobs DownloadJob[]
+
+  @@map("users")
+}
+
+model DownloadJob {
+  id           String          @id @default(uuid())
+  userId       String?         @map("user_id")
+  ipKey        String?         @map("ip_key")
+  sourceUrl    String          @map("source_url") @db.Text
+  platform     String
+  title        String?         @db.Text
+  thumbnailUrl String?         @map("thumbnail_url") @db.Text
+  format       String
+  quality      String
+  status       JobStatus       @default(QUEUED)
+  progress     Int             @default(0)
+  fileSize     BigInt?         @map("file_size")
+  fileName     String?         @map("file_name")
+  filePath     String?         @map("file_path")
+  // Live transfer telemetry reported by the engine (bytes, bytes/s).
+  downloadedBytes BigInt?      @map("downloaded_bytes")
+  speedBps     Int?            @map("speed_bps")
+  // Delivery tracking (server-authoritative, set by the file endpoint).
+  deliveredAt  DateTime?       @map("delivered_at")
+  deliveryCount Int            @default(0) @map("delivery_count")
+  errorCode    String?         @map("error_code")
+  errorMessage String?         @map("error_message") @db.Text
+  createdAt    DateTime        @default(now()) @map("created_at")
+  startedAt    DateTime?       @map("started_at")
+  completedAt  DateTime?       @map("completed_at")
+  expiresAt    DateTime?       @map("expires_at")
+  user         User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  events       DownloadEvent[]
+
+  @@index([status])
+  @@index([platform])
+  @@index([createdAt])
+  @@map("download_jobs")
+}
+
+model DownloadEvent {
+  id            String      @id @default(uuid())
+  downloadJobId String      @map("download_job_id")
+  eventType     String      @map("event_type")
+  message       String?     @db.Text
+  metadata      Json?
+  createdAt     DateTime    @default(now()) @map("created_at")
+  job           DownloadJob @relation(fields: [downloadJobId], references: [id], onDelete: Cascade)
+
+  @@index([downloadJobId])
+  @@map("download_events")
+}
+
+model Platform {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  enabled   Boolean  @default(true)
+  icon      String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("platforms")
+}
+
+model SystemSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(uuid())
+  eventType String   @map("event_type")
+  platform  String?
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([eventType])
+  @@index([createdAt])
+  @@map("analytics_events")
+}

@@ -1,0 +1,33 @@
+{
+  "name": "fetchly",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Fetchly — multi-platform media downloader (original UI, provider-based engine)",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c cyan,green \"npm:dev -w server\" \"npm:dev -w client\"",
+    "dev:client": "npm run dev -w client",
+    "dev:server": "npm run dev -w server",
+    "build": "npm run build -w server && npm run build -w client",
+    "start": "npm run start -w server",
+    "worker": "npm run worker -w server",
+    "lint": "npm run lint -w client && npm run lint -w server",
+    "format": "prettier --write \"client/src/**/*.{ts,tsx,css}\" \"server/src/**/*.ts\"",
+    "test": "npm run test -w server",
+    "db:generate": "npm run db:generate -w server",
+    "db:migrate": "npm run db:migrate -w server",
+    "db:seed": "npm run db:seed -w server"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "concurrently": "^9.1.0",
+    "playwright-core": "^1.62.1",
+    "prettier": "^3.4.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

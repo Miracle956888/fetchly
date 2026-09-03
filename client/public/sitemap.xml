@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://fetchly.example.com/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://fetchly.example.com/youtube-downloader</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://fetchly.example.com/tiktok-downloader</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://fetchly.example.com/instagram-downloader</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://fetchly.example.com/youtube-to-mp3</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://fetchly.example.com/youtube-to-mp4</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://fetchly.example.com/responsible-use</loc><changefreq>yearly</changefreq><priority>0.4</priority></url>
+  <url><loc>https://fetchly.example.com/terms</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://fetchly.example.com/privacy</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://fetchly.example.com/dmca</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+</urlset>

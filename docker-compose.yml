@@ -1,0 +1,99 @@
+name: fetchly
+
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - frontend
+      - backend
+
+  frontend:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    restart: unless-stopped
+    expose:
+      - '80'
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: mysql://${MYSQL_USER:-fetchly}:${MYSQL_PASSWORD:-fetchly}@mysql:3306/${MYSQL_DATABASE:-fetchly}
+      REDIS_URL: redis://redis:6379
+      CLIENT_URL: ${CLIENT_URL:-http://localhost}
+      DOWNLOAD_DIR: /data/downloads
+      TEMP_DIR: /data/temp
+    volumes:
+      - media-storage:/data
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: server/Dockerfile.worker
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: mysql://${MYSQL_USER:-fetchly}:${MYSQL_PASSWORD:-fetchly}@mysql:3306/${MYSQL_DATABASE:-fetchly}
+      REDIS_URL: redis://redis:6379
+      DOWNLOAD_DIR: /data/downloads
+      TEMP_DIR: /data/temp
+    volumes:
+      - media-storage:/data
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-fetchly-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-fetchly}
+      MYSQL_USER: ${MYSQL_USER:-fetchly}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-fetchly}
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./database/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes', '--maxmemory', '256mb', '--maxmemory-policy', 'noeviction']
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mysql-data:
+  redis-data:
+  media-storage:

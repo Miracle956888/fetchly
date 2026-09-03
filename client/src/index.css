@@ -1,0 +1,119 @@
+@import "tailwindcss";
+
+/* Class-based dark mode: utilities like `dark:bg-x` apply under `.dark`. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Semantic design tokens. Utilities keep their names (bg-bg, bg-card,
+ * text-ink, border-line, …) while the underlying values switch per theme —
+ * so components never hardcode a palette.
+ */
+@theme inline {
+  --color-bg: var(--sf-bg);
+  --color-surface: var(--sf-surface);
+  --color-card: var(--sf-card);
+  --color-elevated: var(--sf-elevated);
+  --color-ink: var(--sf-ink);
+  --color-ink-soft: var(--sf-ink-soft);
+  --color-line: var(--sf-line);
+  --color-primary: #00c9a7;
+  --color-primary-dark: var(--sf-primary-dark);
+  --color-primary-light: var(--sf-primary-light);
+  --color-primary-ink: #063c33;
+  --color-success: var(--sf-success);
+  --color-warning: var(--sf-warning);
+  --color-danger: var(--sf-danger);
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+
+  --shadow-card: var(--sf-shadow-card);
+  --shadow-pop: var(--sf-shadow-pop);
+}
+
+:root {
+  --sf-bg: #ffffff;
+  --sf-surface: #f8fafa;
+  --sf-card: #ffffff;
+  --sf-elevated: #ffffff;
+  --sf-ink: #111827;
+  --sf-ink-soft: #6b7280;
+  --sf-line: #e5e7eb;
+  --sf-primary-dark: #00795f; /* text-safe accent + darker hover on light */
+  --sf-primary-light: #e9fffa;
+  --sf-success: #15803d; /* 4.5:1+ as text on white */
+  --sf-warning: #b45309; /* 4.5:1+ as text on white */
+  --sf-danger: #b91c1c;  /* 4.5:1+ as text on white */
+  --sf-shadow-card: 0 1px 2px rgb(17 24 39 / 0.05), 0 8px 24px -12px rgb(17 24 39 / 0.12);
+  --sf-shadow-pop: 0 12px 40px -12px rgb(17 24 39 / 0.22);
+  color-scheme: light;
+}
+
+.dark {
+  --sf-bg: #0b0f0e;
+  --sf-surface: #111817;
+  --sf-card: #17201e;
+  --sf-elevated: #1d2826;
+  --sf-ink: #e9efed;
+  --sf-ink-soft: #9aa7a3;
+  --sf-line: #263230;
+  /* Slightly brighter mint on dark backgrounds (hover/accent variation). */
+  --sf-primary-dark: #17d3b2;
+  --sf-primary-light: #10312b;
+  --sf-success: #4ade80;
+  --sf-warning: #fbbf24;
+  --sf-danger: #f87171;
+  --sf-shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px -12px rgb(0 0 0 / 0.5);
+  --sf-shadow-pop: 0 12px 40px -12px rgb(0 0 0 / 0.65);
+  color-scheme: dark;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-bg text-ink font-sans antialiased;
+}
+
+/* Smooth theme changes without layout shift — colors only. */
+body,
+header,
+footer,
+button,
+input,
+select,
+textarea,
+a,
+table,
+th,
+td {
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease;
+}
+
+/* Visible, consistent focus states everywhere (both themes). */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: var(--color-primary-light);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

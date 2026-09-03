@@ -1,0 +1,12 @@
+# Netlify config for the Fetchly frontend (static SPA).
+# Easiest: build locally, then drag the client/dist folder onto
+# https://app.netlify.com/drop — no repo, no card.
+
+[build]
+  command = "npm ci && npm run build -w client"
+  publish = "client/dist"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
