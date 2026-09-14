@@ -27,7 +27,12 @@ services:
       context: .
       dockerfile: server/Dockerfile
     restart: unless-stopped
-    env_file: .env
+    # `.env` is optional: every value has a safe default, so `docker compose up`
+    # works on a fresh clone without forcing a secrets file first.
+    # (Compose ≥ 2.24)
+    env_file:
+      - path: .env
+        required: false
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -49,7 +54,9 @@ services:
       context: .
       dockerfile: server/Dockerfile.worker
     restart: unless-stopped
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false
     environment:
       NODE_ENV: production
       DATABASE_URL: mysql://${MYSQL_USER:-fetchly}:${MYSQL_PASSWORD:-fetchly}@mysql:3306/${MYSQL_DATABASE:-fetchly}

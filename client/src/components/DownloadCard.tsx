@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { useJobPolling } from '../hooks/useJobPolling';
-import { api } from '../lib/api';
+import { absoluteApiUrl, api } from '../lib/api';
 import type { JobStatus, TrackedDownload } from '../types';
 import { formatFileSize } from '../utils/format';
 import { PlatformIcon } from './PlatformIcon';
@@ -105,11 +105,11 @@ export function DownloadCard({ item, onRetry, onRemove, showThumbnail = false }:
 
   /** Trigger the real device download through the signed delivery URL. */
   const downloadToDevice = async () => {
-    let url = job?.downloadUrl ?? null;
+    let url = absoluteApiUrl(job?.downloadUrl);
     if (!url) {
       // Token may have expired — ask the server for a fresh one.
       const fresh = await refetch();
-      url = fresh.data?.downloadUrl ?? null;
+      url = absoluteApiUrl(fresh.data?.downloadUrl);
     }
     if (!url) return;
     setDelivering(true);

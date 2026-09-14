@@ -1,4 +1,4 @@
-import { env } from '../config/env.js';
+import { env, isProd } from '../config/env.js';
 import { logger } from '../config/logger.js';
 
 /**
@@ -79,8 +79,22 @@ export async function createJobQueue(handler: (jobId: string) => Promise<void>):
     try {
       return await createBullQueue(handler);
     } catch (err) {
+      // Same reasoning as the datastore: an in-process queue in production
+      // means queued jobs vanish on restart and cannot be picked up by a
+      // separate worker process or a second API instance.
+      if (isProd && !env.ALLOW_EPHEMERAL_STORAGE) {
+        logger.fatal(
+          { err },
+          'Redis unavailable. Refusing to start in production: set ALLOW_EPHEMERAL_STORAGE=true only if you accept an in-process queue.',
+        );
+        throw err instanceof Error ? err : new Error('Redis unavailable');
+      }
       logger.error({ err }, 'Redis unavailable — falling back to in-process queue (dev only)');
     }
+  } else if (isProd && !env.ALLOW_EPHEMERAL_STORAGE) {
+    // env.ts already rejects this combination at boot; kept as a hard stop in
+    // case the queue is constructed outside the normal server entrypoint.
+    throw new Error('REDIS_URL is required in production');
   }
   return createLocalQueue(handler);
 }

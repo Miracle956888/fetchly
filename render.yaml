@@ -5,8 +5,8 @@
 # "New +" → "Blueprint" → select the repo. Render builds the Docker image
 # (which bundles FFmpeg + yt-dlp) and runs the API on a free web service.
 #
-# After it deploys, set the real CLIENT_URL (your Netlify site URL) in the
-# service's Environment tab and redeploy.
+# Variables marked `sync: false` are NOT stored here — Render prompts you for
+# them at blueprint creation, so no production value ever lives in Git.
 
 services:
   - type: web
@@ -19,15 +19,32 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      # Replace with your frontend URL after deploying the site (Netlify).
+      # Your frontend's public URL. Render asks for this at deploy time.
+      # Point it at wherever you host the site (Netlify, Vercel, your domain).
       - key: CLIENT_URL
-        value: https://fetchly-site.netlify.app
+        sync: false
+      # Any extra origins that may call the API (e.g. a preview URL), comma
+      # separated. Leave blank if CLIENT_URL is the only one.
+      - key: CORS_ORIGINS
+        value: ""
       - key: JWT_SECRET
         generateValue: true
       - key: ADMIN_EMAIL
-        value: admin@fetchly.local
+        sync: false
       - key: ADMIN_PASSWORD
         generateValue: true
-      # No DATABASE_URL / REDIS_URL on purpose: the free tier uses the
-      # built-in memory datastore + in-process queue. Add a free-tier
-      # MySQL/Redis later if you want persistence.
+      # Cookie SameSite. Keep "strict" unless the frontend and this API are on
+      # different sites; then use "none" (HTTPS is provided by Render).
+      - key: COOKIE_SAMESITE
+        value: strict
+      # ── Ephemeral demo mode ─────────────────────────────────────────────
+      # The free tier has no managed MySQL/Redis, so this blueprint opts in to
+      # the in-memory datastore + in-process queue EXPLICITLY. Data and queued
+      # jobs are discarded on every restart / redeploy (the free tier sleeps).
+      # For a real deployment: attach a MySQL + Redis, set DATABASE_URL and
+      # REDIS_URL, and change this to "false".
+      - key: ALLOW_EPHEMERAL_STORAGE
+        value: "true"
+      # Containers log to stdout only; Render captures and rotates them.
+      - key: LOG_LEVEL
+        value: info

@@ -108,6 +108,13 @@ npm install
 cp .env.example .env           # then edit values (JWT_SECRET, ADMIN_PASSWORD!)
 ```
 
+> **Production security gate.** When `NODE_ENV=production`, the API refuses to
+> boot unless `JWT_SECRET` and `ADMIN_PASSWORD` are set to unique values and a
+> real `DATABASE_URL` / `REDIS_URL` are configured (or `ALLOW_EPHEMERAL_STORAGE=true`
+> is set deliberately for an ephemeral demo). The published development defaults
+> are rejected, so a misconfigured deployment fails loudly at boot instead of
+> running with credentials an attacker can read out of this repository.
+
 Install media engines:
 
 ```bash
@@ -118,7 +125,10 @@ pip3 install yt-dlp            # or: pipx install yt-dlp
 ### Database setup (optional in dev)
 
 - **With MySQL:** set `DATABASE_URL` in `.env`, then
-  `npm run db:generate && npm run db:migrate && npm run db:seed`.
+  `npm run db:generate && npm run db:deploy && npm run db:seed`.
+  (`db:deploy` runs `prisma migrate deploy` against the migrations in
+  `server/prisma/migrations/`; use `db:migrate` only when authoring a NEW
+  migration in development.)
 - **Without:** leave `DATABASE_URL` empty. The API boots with an in-memory persistence adapter
   (logged loudly). Data does not survive restarts — fine for local development only.
 
@@ -148,14 +158,15 @@ seeded automatically on first boot; change both values before any real deploymen
 ## Docker deployment
 
 ```bash
-cp .env.example .env           # configure secrets first
+cp .env.example .env           # configure secrets first (optional on a fresh clone)
 docker compose up -d --build
-docker compose exec backend npx prisma migrate deploy   # apply schema (or use the bundled SQL)
 ```
 
-Services: `nginx` (edge) → `frontend` (static build) + `backend` (API) + `worker`
-(downloads/FFmpeg/cleanup) + `mysql` + `redis`. Generated media lives in the `media-storage`
-volume shared by backend and worker.
+Database migrations are applied automatically by the container entrypoint
+(`prisma migrate deploy`) on every boot — idempotent and safe on an
+already-migrated database. Services: `nginx` (edge) → `frontend` (static build)
++ `backend` (API) + `worker` (downloads/FFmpeg/cleanup) + `mysql` + `redis`.
+Generated media lives in the `media-storage` volume shared by backend and worker.
 
 ### cPanel / shared hosting
 
@@ -169,10 +180,23 @@ Docker Compose stack on a small VPS instead.
 
 - Terminate TLS at Nginx or Cloudflare; set `CLIENT_URL`/`API_URL` to your real origin.
 - Set strong `JWT_SECRET`, `MYSQL_*`, and `ADMIN_PASSWORD` values; never commit `.env`.
-- The SQL in `database/migrations/0001_init.sql` is auto-loaded by the MySQL container on first
-  start; use `prisma migrate deploy` for subsequent schema changes.
+  In production the server **refuses to start** without them.
+- **Site metadata:** build the client with `VITE_SITE_URL=https://yourdomain.com` so the
+  canonical link, Open Graph/Twitter tags, `robots.txt` and `sitemap.xml` carry your real
+  domain. Without it those absolute tags are omitted rather than emitted with a placeholder.
+  Set `VITE_CONTACT_EMAIL` for the DMCA page (otherwise it is derived from the served domain).
+- **Cross-origin frontend/API:** if the site and API are on different hosts, either set
+  `COOKIE_SAMESITE=none` (HTTPS required) or rely on the client's bearer-token fallback
+  (automatic whenever the client is built with `VITE_API_ORIGIN`). Same-origin deployments
+  keep the stricter `SameSite=Strict` httpOnly cookie.
+- **Ephemeral demo:** set `ALLOW_EPHEMERAL_STORAGE=true` only if you accept that data and
+  queued jobs are discarded on restart. Default is `false` (boot is refused instead).
+- The SQL in `database/migrations/` mirrors the canonical Prisma migration and is kept for
+  manual import on shared hosts (phpMyAdmin); Prisma owns migrations everywhere else.
 - Tune `MAX_CONCURRENT_JOBS_PER_IP`, rate limits, `MAX_DOWNLOAD_SIZE_MB` and disk budget for
   your hardware; run one worker process per ~2 CPU cores.
+- **Verify before shipping:** `npm run verify:deploy` builds, boots the production server and
+  asserts the security/routing/error-handling checks end to end (see `DEPLOYMENT.md`).
 
 ## API documentation
 
@@ -208,12 +232,16 @@ Key endpoints: `GET /api/v1/health*` · `GET /api/v1/platforms` · `POST /api/v1
 | Jobs stuck `queued` | Check Redis (`/api/v1/health/redis`); worker process running? |
 | Admin login loops | Clock skew (JWT), or `JWT_SECRET` changed between boots |
 | “in-memory persistence” warning | `DATABASE_URL` not set or MySQL unreachable — expected in dev |
+| “refusing to start” at boot | Production security gate: set unique `JWT_SECRET`/`ADMIN_PASSWORD` and `DATABASE_URL`/`REDIS_URL` (or opt in to `ALLOW_EPHEMERAL_STORAGE=true`) |
+| Admin login loops on a cross-origin setup | Browser blocked the third-party cookie — set `COOKIE_SAMESITE=none` (HTTPS) or build the client with `VITE_API_ORIGIN` to use the bearer fallback |
+| `Cross-origin request blocked` on a POST | A state-changing request arrived from an origin outside `CLIENT_URL`/`CORS_ORIGINS` — add it, or fix the proxy to forward `Host`/`X-Forwarded-Host` |
 
 ## Testing
 
 ```bash
 npm test                    # server: URL/SSRF validation, provider registry, datastore
 npm run test -w client      # client: formatting + URL validation utilities
+npm run verify:deploy       # production quality gate: build + boot + security/routing checks
 ```
 
 Verified end-to-end (real network run): TikTok URL → analyze (5 real format options) → MP4 job

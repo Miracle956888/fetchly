@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { env } from '../config/env.js';
+import { env, isProd } from '../config/env.js';
 import { logger } from '../config/logger.js';
 import type { Datastore } from './datastore.js';
 import { MemoryDatastore } from './memory.js';
@@ -17,6 +17,16 @@ export async function initDatastore(): Promise<Datastore> {
       datastore = await createPrismaDatastore(env.DATABASE_URL);
       logger.info('Persistence: MySQL via Prisma');
     } catch (err) {
+      // In production a database outage must stop the boot. Silently swapping
+      // to the in-memory store would discard every job, user and event on
+      // restart while the service still reports "healthy".
+      if (isProd && !env.ALLOW_EPHEMERAL_STORAGE) {
+        logger.fatal(
+          { err },
+          'MySQL/Prisma unavailable. Refusing to start in production: set ALLOW_EPHEMERAL_STORAGE=true only if you accept that data is discarded on restart.',
+        );
+        throw err instanceof Error ? err : new Error('Database unavailable');
+      }
       logger.error(
         { err },
         'MySQL/Prisma unavailable — falling back to in-memory persistence (dev only, data will not survive restarts)',
@@ -24,6 +34,8 @@ export async function initDatastore(): Promise<Datastore> {
       datastore = new MemoryDatastore();
     }
   } else {
+    // Unreachable in production unless ALLOW_EPHEMERAL_STORAGE=true (env.ts
+    // validates this), so the warning below is honest about the mode.
     logger.warn(
       'DATABASE_URL not set — using in-memory persistence (dev only, data will not survive restarts)',
     );

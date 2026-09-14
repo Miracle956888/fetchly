@@ -5,6 +5,17 @@ interface Section {
   body: string[];
 }
 
+/**
+ * Public takedown contact. Set VITE_CONTACT_EMAIL at build time; otherwise it
+ * is derived from the domain the app is actually served from, so no
+ * placeholder address ever ships to production.
+ */
+const CONTACT_EMAIL: string =
+  import.meta.env.VITE_CONTACT_EMAIL ??
+  (typeof window !== 'undefined' && window.location.hostname.includes('.')
+    ? `dmca@${window.location.hostname.replace(/^www\./, '')}`
+    : 'dmca@fetchly.local');
+
 const DOCS: Record<string, { title: string; updated: string; sections: Section[] }> = {
   'responsible-use': {
     title: 'Responsible Use Policy',
@@ -113,7 +124,7 @@ const DOCS: Record<string, { title: string; updated: string; sections: Section[]
       },
       {
         heading: 'Designated agent',
-        body: ['dmca@fetchly.example.com'],
+        body: [CONTACT_EMAIL],
       },
     ],
   },

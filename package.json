@@ -2,7 +2,7 @@
   "name": "fetchly",
   "version": "1.0.0",
   "private": true,
-  "description": "Fetchly — multi-platform media downloader (original UI, provider-based engine)",
+  "description": "Fetchly \u2014 multi-platform media downloader (original UI, provider-based engine)",
   "workspaces": [
     "client",
     "server"
@@ -19,6 +19,8 @@
     "test": "npm run test -w server",
     "db:generate": "npm run db:generate -w server",
     "db:migrate": "npm run db:migrate -w server",
+    "db:deploy": "npm run db:deploy -w server",
+    "verify:deploy": "node scripts/deploy-check.mjs",
     "db:seed": "npm run db:seed -w server"
   },
   "devDependencies": {

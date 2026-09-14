@@ -25,10 +25,60 @@ export class ApiClientError extends Error {
  * where the API lives on another origin (e.g. cPanel subdomains), build the
  * client with VITE_API_ORIGIN=https://api.yourdomain.com.
  */
-const API_ORIGIN: string = import.meta.env.VITE_API_ORIGIN ?? '';
+const API_ORIGIN: string = (import.meta.env.VITE_API_ORIGIN ?? '').replace(/\/+$/, '');
 const BASE = `${API_ORIGIN}/api/v1`;
 
+/**
+ * True when the API is on a different origin than the site.
+ *
+ * This matters for authentication: a `SameSite=Strict` (or `Lax`) session
+ * cookie is never sent on cross-site requests, and browsers are increasingly
+ * blocking third-party cookies outright. In that topology the admin session
+ * therefore rides on an `Authorization: Bearer` header instead, which the API
+ * already accepts. Same-origin builds never touch localStorage and keep the
+ * strictly-better httpOnly cookie as the only credential.
+ */
+export const IS_CROSS_ORIGIN_API = API_ORIGIN !== '';
+
+const TOKEN_KEY = 'fetchly_admin_token';
+
+export function getAuthToken(): string | null {
+  if (!IS_CROSS_ORIGIN_API) return null;
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null; // private mode / storage disabled
+  }
+}
+
+/** Store or clear the admin bearer token (cross-origin builds only). */
+export function setAuthToken(token: string | null): void {
+  if (!IS_CROSS_ORIGIN_API) return;
+  try {
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    /* storage unavailable — session simply will not persist */
+  }
+}
+
+/**
+ * Resolve a server-returned URL against the API origin.
+ *
+ * The API emits root-relative links (e.g. the signed delivery URL
+ * `/api/v1/downloads/:id/file?token=…`). Those are correct behind a reverse
+ * proxy but would 404 in a cross-origin build, where they must point at the
+ * API host instead of the site host.
+ */
+export function absoluteApiUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (/^https?:\/\//i.test(url)) return url; // already absolute
+  if (!url.startsWith('/')) return url;
+  return `${API_ORIGIN}${url}`;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getAuthToken();
   let res: Response;
   try {
     res = await fetch(`${BASE}${path}`, {
@@ -36,6 +86,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
+        // Cookie first; the bearer header is the cross-origin fallback.
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(init?.headers ?? {}),
       },
     });
@@ -53,6 +105,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!res.ok) {
+    // A rejected credential is terminal: drop the stored token so the app
+    // routes to the login screen instead of retrying a dead session forever.
+    if (res.status === 401) setAuthToken(null);
     const err = (body as { error?: { code?: string; message?: string } } | null)?.error;
     throw new ApiClientError(
       err?.code ?? 'SERVER_ERROR',
@@ -119,12 +174,22 @@ export const api = {
 };
 
 export const adminApi = {
-  login: (email: string, password: string) =>
-    request<{ email: string; name: string }>('/admin/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    }),
-  logout: () => request<{ success: boolean }>('/admin/auth/logout', { method: 'POST' }),
+  login: async (email: string, password: string) => {
+    const data = await request<{ email: string; name: string; token?: string }>(
+      '/admin/auth/login',
+      { method: 'POST', body: JSON.stringify({ email, password }) },
+    );
+    // Cross-origin builds cannot use the SameSite cookie — keep the bearer.
+    if (data?.token) setAuthToken(data.token);
+    return data;
+  },
+  logout: async () => {
+    try {
+      return await request<{ success: boolean }>('/admin/auth/logout', { method: 'POST' });
+    } finally {
+      setAuthToken(null);
+    }
+  },
   me: () => request<{ email: string }>('/admin/auth/me'),
   stats: () => request<AdminJobStats>('/admin/stats'),
   storage: () =>

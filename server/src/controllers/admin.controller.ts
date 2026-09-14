@@ -11,13 +11,39 @@ import { listPlatforms, setPlatformEnabled } from '../services/platformService.j
 import { asyncH } from '../utils/asyncH.js';
 import { ApiError } from '../utils/errors.js';
 
+/**
+ * Admin session cookie.
+ *  - httpOnly  : unreadable from JS, so an XSS cannot steal the session.
+ *  - secure    : HTTPS-only in production (and always when SameSite=None,
+ *                which browsers reject without Secure).
+ *  - sameSite  : configurable, because a cross-origin frontend/API split
+ *                cannot use Strict. See COOKIE_SAMESITE in .env.example.
+ *
+ * Cookie lifetime is aligned with JWT_EXPIRES_IN so the cookie never outlives
+ * the token it carries.
+ */
+const jwtMaxAgeMs = (() => {
+  const m = /^(\d+)\s*([smhd])$/.exec(env.JWT_EXPIRES_IN.trim());
+  if (!m) return 8 * 60 * 60 * 1000;
+  const unitMs = { s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000 }[m[2] as 's' | 'm' | 'h' | 'd'];
+  return Number(m[1]) * (unitMs ?? 1000);
+})();
+
 const COOKIE_OPTS = {
   httpOnly: true,
-  sameSite: 'strict' as const,
-  secure: isProd,
+  sameSite: env.COOKIE_SAMESITE,
+  secure: isProd || env.COOKIE_SAMESITE === 'none',
   path: '/',
-  maxAge: 8 * 60 * 60 * 1000,
-};
+  maxAge: jwtMaxAgeMs,
+} as const;
+
+/** Attributes a browser matches on when deleting a cookie (no maxAge). */
+const CLEAR_OPTS = {
+  httpOnly: COOKIE_OPTS.httpOnly,
+  sameSite: COOKIE_OPTS.sameSite,
+  secure: COOKIE_OPTS.secure,
+  path: COOKIE_OPTS.path,
+} as const;
 
 const LoginSchema = z.object({
   email: z.string().email().max(254),
@@ -40,7 +66,7 @@ export const login = asyncH(async (req: Request, res: Response) => {
 });
 
 export const logout = asyncH(async (_req: Request, res: Response) => {
-  res.clearCookie(ADMIN_COOKIE, { path: '/' });
+  res.clearCookie(ADMIN_COOKIE, CLEAR_OPTS);
   res.json({ success: true });
 });
 

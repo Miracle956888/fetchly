@@ -3,9 +3,10 @@ import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
-import { env } from './config/env.js';
+import { allowedOrigins } from './config/env.js';
 import { logger } from './config/logger.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import { originGuard } from './middleware/originGuard.js';
 import { apiLimiter } from './middleware/rateLimit.js';
 import { requestId } from './middleware/requestId.js';
 import { createApiRouter } from './routes/index.js';
@@ -19,9 +20,13 @@ export function createApp(): express.Express {
   app.use(helmet());
   app.use(
     cors({
-      origin: env.CLIENT_URL,
+      // Explicit allow-list reflected per request — required because
+      // credentials are enabled ('*' is rejected by browsers with cookies).
+      origin: allowedOrigins,
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+      maxAge: 600,
     }),
   );
   app.use(cookieParser());
@@ -38,6 +43,7 @@ export function createApp(): express.Express {
   );
 
   app.use('/api/v1', apiLimiter);
+  app.use('/api/v1', originGuard);
   app.use('/api/v1', createApiRouter());
 
   app.use('/api', notFoundHandler);
