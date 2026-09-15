@@ -1,26 +1,38 @@
 import Link from "next/link";
-import { ArrowRight, BookOpen, CheckCircle2, Code2, GraduationCap, Layers, ListChecks, Play, Target } from "lucide-react";
+import {
+  ArrowRight,
+  BookOpen,
+  CheckCircle2,
+  Code2,
+  GraduationCap,
+  ListChecks,
+  Play,
+  Sparkles,
+  Target,
+  Trophy,
+} from "lucide-react";
 import { listPublishedCourses } from "@/services/course.service";
-import { listCategoriesWithCounts } from "@/services/category.service";
+import { listCategorySections } from "@/services/category.service";
 import { getDb } from "@/db/client";
 import { learningPathCourses, learningPaths } from "@/db/schema";
 import { asc, eq } from "drizzle-orm";
 import { CourseCard } from "@/components/course/course-card";
 import { Button } from "@/components/ui/button";
+import { PhaseNote } from "@/components/ui/empty-state";
 
 export const dynamic = "force-dynamic";
 
 export default async function LandingPage() {
-  const [popular, categories, paths] = await Promise.all([
+  const [popular, sections, paths] = await Promise.all([
     listPublishedCourses({ sort: "popular", page: 1, perPage: 3 }),
-    listCategoriesWithCounts(),
+    listCategorySections(),
     getPaths(),
   ]);
 
   return (
     <>
       <Hero />
-      <HowItWorks />
+      <InteractiveLearningSection />
       <section className="container-page py-16" aria-labelledby="popular-heading">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -51,29 +63,9 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      <section className="border-y border-ink-100 bg-surface/60" aria-labelledby="categories-heading">
-        <div className="container-page py-16">
-          <p className="eyebrow">Explore</p>
-          <h2 id="categories-heading" className="mt-2 text-2xl font-semibold sm:text-3xl">
-            Course categories
-          </h2>
-          <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {categories.map((cat) => (
-              <Link
-                key={cat.id}
-                href={`/courses?category=${encodeURIComponent(cat.slug)}`}
-                className="group rounded-card border border-ink-200/80 bg-surface p-4 shadow-card transition-colors hover:border-brand-300"
-              >
-                <p className="text-[14px] font-semibold text-ink-900 group-hover:text-brand-700">{cat.name}</p>
-                <p className="mt-1 text-[12px] text-ink-500">
-                  {cat.courseCount > 0 ? `${cat.courseCount} course${cat.courseCount === 1 ? "" : "s"}` : "Coming soon"}
-                </p>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
+      <CategoriesSection sections={sections} />
+      <AiAssistantSection />
+      <HowItWorks />
       <LearningPathsSection paths={paths} />
       <WhySection />
       <InstructorSection />
@@ -91,16 +83,15 @@ function Hero() {
         <div>
           <p className="eyebrow">Programming, taught properly</p>
           <h1 className="mt-4 max-w-xl text-4xl font-semibold leading-[1.12] tracking-tight sm:text-5xl">
-            Learn to code by writing real code.
+            Learn to code. Practice. Build. Grow.
           </h1>
           <p className="mt-5 max-w-lg text-[16px] leading-7 text-ink-600">
-            Learnly is a structured learning platform for programming. Every course follows a
-            deliberate curriculum: short explanations, hands-on practice, and quizzes that check you
-            actually understand — with progress tracked at every step.
+            Learn programming through structured courses, hands-on practice, quizzes — and a
+            Learning Assistant that explains the hard parts in context, right inside your lesson.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Button href="/courses" size="lg">
-              Browse courses
+              Start learning
             </Button>
             <Button href="/register" variant="outline" size="lg">
               Create free account
@@ -116,6 +107,9 @@ function Hero() {
             <li className="inline-flex items-center gap-1.5">
               <CheckCircle2 className="h-4 w-4 text-success-600" aria-hidden /> Progress tracking
             </li>
+            <li className="inline-flex items-center gap-1.5">
+              <CheckCircle2 className="h-4 w-4 text-success-600" aria-hidden /> AI learning assistant
+            </li>
           </ul>
         </div>
         <HeroCodeCard />
@@ -128,79 +122,197 @@ function Hero() {
 function HeroCodeCard() {
   return (
     <div className="overflow-hidden rounded-card border border-ink-200/80 shadow-pop" aria-hidden>
-      <div className="flex items-center gap-1.5 border-b border-ink-800 bg-ink-900 px-4 py-2.5">
-        <span className="h-2.5 w-2.5 rounded-full bg-ink-600" />
-        <span className="h-2.5 w-2.5 rounded-full bg-ink-600" />
-        <span className="h-2.5 w-2.5 rounded-full bg-ink-600" />
-        <span className="ml-3 font-mono text-[11px] text-ink-400">welcome.html</span>
+      <div className="flex items-center gap-2 border-b border-ink-800 bg-ink-900 px-4 py-2.5">
+        <span className="h-2.5 w-2.5 rounded-full bg-ink-700" />
+        <span className="h-2.5 w-2.5 rounded-full bg-ink-700" />
+        <span className="h-2.5 w-2.5 rounded-full bg-ink-700" />
+        <span className="ml-2 font-mono text-[11px] text-ink-400">first-steps.js</span>
       </div>
-      <pre className="overflow-x-auto bg-code-bg p-5 font-mono text-[13px] leading-6 text-code-text">
-        <code>
-          <span className="text-code-muted">&lt;!-- Your first lesson --&gt;</span>
-          {"\n"}
-          <span className="text-brand-300">&lt;h1&gt;</span>Hello, future developer.<span className="text-brand-300">&lt;/h1&gt;</span>
-          {"\n\n"}
-          <span className="text-brand-300">&lt;script&gt;</span>
-          {"\n"}
-          {"  "}
-          <span className="text-warning-100">const</span> course = <span className="text-success-100">&quot;HTML Basics&quot;</span>;
-          {"\n"}
-          {"  "}
-          <span className="text-warning-100">const</span> step = <span className="text-success-100">&quot;read → practice → quiz&quot;</span>;
-          {"\n"}
-          {"  "}console.<span className="text-brand-300">log</span>(<span className="text-success-100">&quot;</span>${"{course}"}: ${"{step}"}<span className="text-success-100">&quot;</span>);
-          {"\n"}
-          <span className="text-brand-300">&lt;/script&gt;</span>
-        </code>
+      <pre className="overflow-x-auto bg-code-bg p-5 font-mono text-[13px] leading-7 text-code-text">
+        <code>{`function greet(name) {
+  return "Hello, " + name + "!";
+}
+
+console.log(greet("developer"));
+// → Hello, developer!`}</code>
       </pre>
-      <div className="border-t border-ink-800 bg-ink-900/60 px-5 py-3">
-        <p className="font-mono text-[12px] text-ink-400">
-          HTML Basics · Module 1 · Lesson 1 <span className="text-success-100">✓ completed</span>
-        </p>
+      <div className="border-t border-ink-800 bg-ink-900 px-4 py-2.5">
+        <span className="font-mono text-[11.5px] text-success-400">✓ understood · lesson 1 of 11</span>
       </div>
     </div>
   );
 }
 
+function InteractiveLearningSection() {
+  const steps = [
+    { icon: BookOpen, title: "Learn the concept", body: "Short lessons explain one idea at a time." },
+    { icon: Play, title: "Study the example", body: "Working code you can read, line by line." },
+    { icon: Code2, title: "Write your own", body: "Practice exercises with a brief and starter code." },
+    { icon: ListChecks, title: "Get checked", body: "Quizzes verify understanding — with explanations." },
+  ];
+  return (
+    <section className="border-b border-ink-100 bg-surface/60" aria-labelledby="interactive-heading">
+      <div className="container-page py-16">
+        <div className="max-w-xl">
+          <p className="eyebrow">Interactive learning</p>
+          <h2 id="interactive-heading" className="mt-2 text-2xl font-semibold sm:text-3xl">
+            You learn programming by doing programming
+          </h2>
+          <p className="mt-3 text-[14.5px] leading-6 text-ink-600">
+            Every lesson follows the same loop: understand, imitate, build, verify. No wall of text —
+            just the next smallest step.
+          </p>
+        </div>
+        <ol className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {steps.map((s, i) => (
+            <li key={s.title} className="rounded-card border border-ink-200/80 bg-surface p-5 shadow-card">
+              <div className="flex items-center gap-2.5">
+                <s.icon className="h-4.5 w-4.5 text-brand-600" aria-hidden />
+                <span className="font-mono text-[11.5px] text-ink-400">0{i + 1}</span>
+              </div>
+              <h3 className="mt-3 text-[14.5px] font-semibold text-ink-900">{s.title}</h3>
+              <p className="mt-1.5 text-[13px] leading-5.5 text-ink-600">{s.body}</p>
+            </li>
+          ))}
+        </ol>
+        <div className="mt-6">
+          <PhaseNote feature="Code runner" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CategoriesSection({
+  sections,
+}: {
+  sections: Awaited<ReturnType<typeof listCategorySections>>;
+}) {
+  if (sections.length === 0) return null;
+  return (
+    <section className="container-page py-16" aria-labelledby="what-heading">
+      <div className="max-w-xl">
+        <p className="eyebrow">What you can learn</p>
+        <h2 id="what-heading" className="mt-2 text-2xl font-semibold sm:text-3xl">
+          From first markup to full-stack
+        </h2>
+      </div>
+      <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+        {sections.map((g) => (
+          <div key={g.section} className="rounded-card border border-ink-200/80 bg-surface p-5 shadow-card">
+            <h3 className="text-[14px] font-semibold uppercase tracking-[0.08em] text-ink-500">{g.label}</h3>
+            <ul className="mt-3 space-y-1.5">
+              {g.categories.map((c) => (
+                <li key={c.id}>
+                  <Link
+                    href={`/courses?category=${encodeURIComponent(c.slug)}`}
+                    className="inline-flex items-center gap-2 rounded-btn px-1 py-0.5 text-[14px] font-medium text-ink-800 transition-colors hover:text-brand-700"
+                  >
+                    {c.name}
+                    <span className="text-[11.5px] font-normal text-ink-400">
+                      {c.courseCount > 0 ? `${c.courseCount} course${c.courseCount === 1 ? "" : "s"}` : "soon"}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+        <div className="flex flex-col justify-center rounded-card border border-dashed border-ink-200 bg-ink-50/50 p-5">
+          <p className="text-[13.5px] leading-6 text-ink-600">
+            New categories and courses are added by the platform team over time — the catalog is
+            data-driven, so what you see here is always the live catalog.
+          </p>
+          <Link href="/categories" className="mt-3 inline-flex items-center gap-1 text-[13px] font-medium text-brand-700 hover:underline">
+            All categories <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function AiAssistantSection() {
+  const examples = [
+    "“Why isn't my form submitting?”",
+    "“Can you explain Flexbox in simpler words?”",
+    "“Give me a practice question on this lesson.”",
+    "“I'm getting a ReferenceError — what's wrong?”",
+  ];
+  return (
+    <section className="border-y border-ink-100 bg-ink-950 text-ink-200" aria-labelledby="ai-heading">
+      <div className="container-page grid items-center gap-10 py-16 lg:grid-cols-[0.9fr_1.1fr]">
+        <div>
+          <p className="eyebrow text-brand-300">Learning Assistant</p>
+          <h2 id="ai-heading" className="mt-2 text-2xl font-semibold text-white sm:text-3xl">
+            Stuck on a concept? Ask in the moment
+          </h2>
+          <p className="mt-4 max-w-md text-[14.5px] leading-7 text-ink-300">
+            Inside every lesson, your Learning Assistant knows exactly what you&apos;re studying —
+            the course, the module, the lesson, your progress. It explains concepts, shows
+            examples, sets practice questions, and helps you debug code. It teaches; it doesn&apos;t
+            do the homework for you.
+          </p>
+          <div className="mt-7">
+            <Button href="/courses" size="lg">
+              Try it in a course
+            </Button>
+          </div>
+        </div>
+        <div className="rounded-card border border-ink-800 bg-ink-900/70 p-5" aria-label="Example questions for the Learning Assistant">
+          <div className="flex items-center gap-2 border-b border-ink-800 pb-3">
+            <Sparkles className="h-4 w-4 text-brand-400" aria-hidden />
+            <span className="text-[13px] font-semibold text-ink-100">Ask your Learning Assistant</span>
+          </div>
+          <ul className="mt-4 space-y-2.5">
+            {examples.map((q) => (
+              <li key={q} className="flex justify-end">
+                <span className="max-w-[85%] rounded-card rounded-br-sm bg-brand-600/25 px-3.5 py-2 text-[13px] leading-5 text-ink-100 ring-1 ring-inset ring-brand-500/30">
+                  {q}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-4 border-t border-ink-800 pt-3 text-[12px] leading-5 text-ink-400">
+            Available in the student portal, inside every lesson.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function HowItWorks() {
   const steps = [
-    {
-      icon: BookOpen,
-      title: "Learn the concept",
-      body: "Short, focused lessons explain one idea at a time — with working examples you can read and study.",
-    },
-    {
-      icon: Code2,
-      title: "Practice it",
-      body: "Each key lesson has a hands-on exercise. Read the brief, work with real code, and check your approach.",
-    },
-    {
-      icon: ListChecks,
-      title: "Prove it",
-      body: "Module quizzes verify understanding with instant scoring and explanations for every answer.",
-    },
+    { title: "Create an account", body: "Free, in under a minute — no card, no friction." },
+    { title: "Choose a course", body: "Start where you are: a first course, or a full path." },
+    { title: "Learn the lessons", body: "Short explanations with working examples, in teaching order." },
+    { title: "Practice", body: "Hands-on exercises on the key lessons of every course." },
+    { title: "Take the quizzes", body: "Check your understanding — with instant scoring and explanations." },
+    { title: "Track your progress", body: "Lesson-level progress on your dashboard, every course." },
+    { title: "Complete the course", body: "Finish the requirements and earn your certificate." },
   ];
   return (
     <section className="container-page py-16" aria-labelledby="how-heading">
       <div className="max-w-xl">
         <p className="eyebrow">How it works</p>
         <h2 id="how-heading" className="mt-2 text-2xl font-semibold sm:text-3xl">
-          Three steps, repeated until it sticks
+          Seven steps from zero to done
         </h2>
       </div>
-      <ol className="mt-8 grid gap-5 md:grid-cols-3">
+      <ol className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {steps.map((s, i) => (
-          <li key={s.title} className="rounded-card border border-ink-200/80 bg-surface p-6 shadow-card">
-            <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-50 text-brand-700">
-                <s.icon className="h-4.5 w-4.5" aria-hidden />
-              </span>
-              <span className="font-mono text-[12px] text-ink-400">0{i + 1}</span>
-            </div>
-            <h3 className="mt-4 text-[15px] font-semibold text-ink-900">{s.title}</h3>
-            <p className="mt-2 text-[13.5px] leading-6 text-ink-600">{s.body}</p>
+          <li key={s.title} className="rounded-card border border-ink-200/80 bg-surface p-5 shadow-card">
+            <span className="font-mono text-[12px] text-brand-600">0{i + 1}</span>
+            <h3 className="mt-2 text-[14.5px] font-semibold text-ink-900">{s.title}</h3>
+            <p className="mt-1.5 text-[13px] leading-5.5 text-ink-600">{s.body}</p>
           </li>
         ))}
+        <li className="flex items-center justify-center rounded-card border border-dashed border-ink-200 p-5">
+          <Link href="/register" className="inline-flex items-center gap-1.5 text-[14px] font-medium text-brand-700 hover:underline">
+            Start step 1 now <ArrowRight className="h-4 w-4" aria-hidden />
+          </Link>
+        </li>
       </ol>
     </section>
   );
@@ -263,42 +375,50 @@ function WhySection() {
   const items = [
     {
       icon: Target,
-      title: "Curriculum, not chaos",
-      body: "Topics are sequenced the way they're actually taught — fundamentals first, confidence built incrementally.",
+      title: "Structured learning",
+      body: "Every course is a deliberate curriculum — topics arrive in teaching order, not a random pile of videos.",
     },
     {
       icon: Code2,
-      title: "Code-first explanations",
-      body: "Every concept is shown in real, runnable code. You learn by reading working examples, not abstract prose.",
+      title: "Interactive practice",
+      body: "Key lessons come with hands-on exercises: a brief, starter code and the behavior you're aiming for.",
     },
     {
-      icon: Layers,
-      title: "Progress you can see",
-      body: "Lesson completion, module state and course percentage — always scoped to you, always honest.",
+      icon: ListChecks,
+      title: "Quizzes that explain",
+      body: "Instant scoring with an explanation for every answer — you learn from the check itself.",
     },
     {
-      icon: GraduationCap,
-      title: "Certificates on completion",
-      body: "Finish a course, pass its checks, and earn a verifiable certificate to share.",
+      icon: BookOpen,
+      title: "Self-paced",
+      body: "Your progress is saved at the lesson level. Stop and come back exactly where you were.",
+    },
+    {
+      icon: Sparkles,
+      title: "AI assistance",
+      body: "A Learning Assistant that knows your course, lesson and progress — for when a concept resists.",
+    },
+    {
+      icon: Trophy,
+      title: "Proof of progress",
+      body: "Finish a course's requirements and a verifiable certificate marks it. No vague badges.",
     },
   ];
   return (
-    <section className="border-y border-ink-100 bg-surface/60" aria-labelledby="why-heading">
+    <section className="border-t border-ink-100 bg-surface/60" aria-labelledby="why-heading">
       <div className="container-page py-16">
-        <p className="eyebrow">Why Learnly</p>
-        <h2 id="why-heading" className="mt-2 text-2xl font-semibold sm:text-3xl">
-          Built like a serious education platform
-        </h2>
-        <div className="mt-8 grid gap-5 sm:grid-cols-2">
+        <div className="max-w-xl">
+          <p className="eyebrow">Why Learnly</p>
+          <h2 id="why-heading" className="mt-2 text-2xl font-semibold sm:text-3xl">
+            Built for people who want to actually get good
+          </h2>
+        </div>
+        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((it) => (
-            <div key={it.title} className="flex gap-4 rounded-card border border-ink-200/80 bg-surface p-5 shadow-card">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-700">
-                <it.icon className="h-4.5 w-4.5" aria-hidden />
-              </span>
-              <div>
-                <h3 className="text-[14.5px] font-semibold text-ink-900">{it.title}</h3>
-                <p className="mt-1.5 text-[13.5px] leading-6 text-ink-600">{it.body}</p>
-              </div>
+            <div key={it.title} className="rounded-card border border-ink-200/80 bg-surface p-6 shadow-card">
+              <it.icon className="h-5 w-5 text-brand-600" aria-hidden />
+              <h3 className="mt-3 text-[15px] font-semibold text-ink-900">{it.title}</h3>
+              <p className="mt-1.5 text-[13.5px] leading-6 text-ink-600">{it.body}</p>
             </div>
           ))}
         </div>
@@ -309,21 +429,20 @@ function WhySection() {
 
 function InstructorSection() {
   return (
-    <section className="container-page py-16" aria-labelledby="instructors-heading">
-      <div className="grid items-center gap-8 rounded-card border border-ink-200/80 bg-ink-900 p-8 text-white shadow-card lg:grid-cols-[1fr_auto] lg:p-10">
+    <section className="container-page py-16" aria-labelledby="instructor-heading">
+      <div className="grid items-center gap-8 rounded-card border border-ink-200/80 bg-surface p-8 shadow-card lg:grid-cols-[1fr_auto] sm:p-10">
         <div>
-          <p className="eyebrow !text-ink-400">For instructors</p>
-          <h2 id="instructors-heading" className="mt-2 max-w-lg text-2xl font-semibold text-white">
-            Teach your course, see your students
+          <p className="eyebrow">For instructors</p>
+          <h2 id="instructor-heading" className="mt-2 text-xl font-semibold sm:text-2xl">
+            Teaching on Learnly
           </h2>
-          <p className="mt-3 max-w-xl text-[14px] leading-6 text-ink-300">
-            Instructors manage assigned courses, review curriculum structure, and follow every
-            enrolled student&apos;s progress, quiz results and activity — scoped to the courses they teach.
+          <p className="mt-3 max-w-2xl text-[14px] leading-6 text-ink-600">
+            Instructors get a dedicated portal: the courses they teach, their enrolled students,
+            per-student progress and quiz results — scoped strictly to their assignments.
+            Platform administrators manage the catalog, categories and users.
           </p>
         </div>
-        <Button href="/login" variant="outline" className="border-white/25 bg-transparent text-white hover:bg-white/10 hover:border-white/40">
-          Instructor login
-        </Button>
+        <GraduationCap className="hidden h-16 w-16 text-brand-200 lg:block" aria-hidden />
       </div>
     </section>
   );
@@ -331,19 +450,18 @@ function InstructorSection() {
 
 function FinalCta() {
   return (
-    <section className="container-page pb-4 pt-8">
-      <div className="flex flex-col items-center rounded-card border border-ink-200/80 bg-surface px-6 py-12 text-center shadow-card">
-        <Play className="h-6 w-6 text-brand-600" aria-hidden />
-        <h2 className="mt-4 text-2xl font-semibold">Start learning today</h2>
-        <p className="mt-2 max-w-md text-[14px] text-ink-600">
-          Create a free account, enroll in a course, and make your first lesson count.
+    <section className="border-t border-ink-100">
+      <div className="container-page flex flex-col items-center py-16 text-center sm:py-20">
+        <h2 className="max-w-xl text-3xl font-semibold sm:text-4xl">Start your learning journey</h2>
+        <p className="mt-4 max-w-md text-[15px] leading-7 text-ink-600">
+          Pick a course, create a free account, and finish your first lesson today.
         </p>
-        <div className="mt-6 flex gap-3">
-          <Button href="/register" size="lg">
-            Get started
-          </Button>
-          <Button href="/courses" variant="outline" size="lg">
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <Button href="/courses" size="lg">
             Explore courses
+          </Button>
+          <Button href="/register" variant="outline" size="lg">
+            Create free account
           </Button>
         </div>
       </div>

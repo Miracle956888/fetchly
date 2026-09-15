@@ -56,12 +56,18 @@ export function Field({ label, hint, error, required, children, className }: Fie
 function useFieldWiring(overrideId?: string) {
   const ctx = React.useContext(FieldContext);
   const id = overrideId ?? ctx?.id;
+  const hasError = !!ctx?.error;
   return {
     id,
-    "aria-invalid": ctx?.error ? (true as const) : undefined,
-    "aria-describedby": ctx?.error && id ? `${id}-error` : undefined,
-    hasError: !!ctx?.error,
+    "aria-invalid": hasError ? (true as const) : undefined,
+    "aria-describedby": hasError && id ? `${id}-error` : undefined,
+    hasError,
   };
+}
+
+/** DOM-safe subset (never spreads internal flags onto the element). */
+function domProps(w: { id?: string; "aria-invalid"?: boolean; "aria-describedby"?: string }) {
+  return { id: w.id, "aria-invalid": w["aria-invalid"], "aria-describedby": w["aria-describedby"] };
 }
 
 const inputBase =
@@ -71,20 +77,20 @@ const inputErr = "border-danger-600 focus:ring-danger-100";
 
 export function Input({ className, id, ...rest }: React.InputHTMLAttributes<HTMLInputElement>) {
   const w = useFieldWiring(id);
-  return <input {...w} className={clsx(inputBase, w.hasError ? inputErr : inputOk, className)} {...rest} />;
+  return <input {...domProps(w)} className={clsx(inputBase, w.hasError ? inputErr : inputOk, className)} {...rest} />;
 }
 
 export function Textarea({ className, id, ...rest }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   const w = useFieldWiring(id);
   return (
-    <textarea {...w} rows={4} className={clsx(inputBase, "min-h-24 py-2.5 leading-6", w.hasError ? inputErr : inputOk, className)} {...rest} />
+    <textarea {...domProps(w)} rows={4} className={clsx(inputBase, "min-h-24 py-2.5 leading-6", w.hasError ? inputErr : inputOk, className)} {...rest} />
   );
 }
 
 export function Select({ className, id, children, ...rest }: React.SelectHTMLAttributes<HTMLSelectElement>) {
   const w = useFieldWiring(id);
   return (
-    <select {...w} className={clsx(inputBase, "pr-8", w.hasError ? inputErr : inputOk, className)} {...rest}>
+    <select {...domProps(w)} className={clsx(inputBase, "pr-8", w.hasError ? inputErr : inputOk, className)} {...rest}>
       {children}
     </select>
   );

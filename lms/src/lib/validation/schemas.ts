@@ -123,6 +123,24 @@ export const enrollmentCreateSchema = z.object({
   courseId: z.string().trim().uuid("Invalid course id."),
 });
 
+export const aiAssistantMessageSchema = z.object({
+  message: z
+    .string()
+    .trim()
+    .min(3, "Your question is too short.")
+    .max(1500, "Your question is too long."),
+  courseId: z.string().trim().uuid().optional(),
+  lessonId: z.string().trim().uuid().optional(),
+  conversationId: z.string().trim().uuid().optional(),
+});
+export type AiAssistantMessageInput = z.infer<typeof aiAssistantMessageSchema>;
+
+export const aiSuggestionsQuerySchema = z.object({
+  courseId: z.string().trim().uuid().optional(),
+  lessonId: z.string().trim().uuid().optional(),
+  conversationId: z.string().trim().uuid().optional(),
+});
+
 export const progressUpdateSchema = z.object({
   lessonId: z.string().trim().uuid("Invalid lesson id."),
   completed: z.literal(true, { message: "Marking a lesson as not completed is not supported yet." }),

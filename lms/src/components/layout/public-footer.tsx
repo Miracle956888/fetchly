@@ -5,10 +5,11 @@ const columns = [
   {
     title: "Platform",
     links: [
-      { href: "/courses", label: "Browse courses" },
+      { href: "/courses", label: "Courses" },
       { href: "/categories", label: "Categories" },
-      { href: "/faq", label: "FAQ" },
+      { href: "/about", label: "About" },
       { href: "/contact", label: "Contact" },
+      { href: "/faq", label: "FAQ" },
     ],
   },
   {
@@ -28,12 +29,19 @@ const columns = [
       { href: "/student", label: "Student portal" },
     ],
   },
+  {
+    title: "Legal",
+    links: [
+      { href: "/privacy", label: "Privacy" },
+      { href: "/terms", label: "Terms" },
+    ],
+  },
 ];
 
 export function PublicFooter() {
   return (
     <footer className="mt-20 bg-ink-950 text-ink-300">
-      <div className="container-page grid gap-10 py-14 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
+      <div className="container-page grid gap-10 py-14 sm:grid-cols-2 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div>
           <Logo dark />
           <p className="mt-4 max-w-xs text-[13px] leading-6 text-ink-400">

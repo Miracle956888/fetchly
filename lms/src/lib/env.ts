@@ -13,6 +13,10 @@ const envSchema = z.object({
     .default("true")
     .transform((v) => v === "true" || v === "1"),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  // AI Learning Assistant provider selection (Phase 02: "learnly-tutor" =
+  // built-in rule-based tutor; hosted providers are added here in later
+  // phases). Provider secrets stay server-side env vars, never the frontend.
+  AI_TUTOR_PROVIDER: z.string().default("learnly-tutor"),
 });
 
 let cached: z.infer<typeof envSchema> | null = null;

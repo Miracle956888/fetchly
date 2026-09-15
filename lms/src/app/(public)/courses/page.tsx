@@ -3,6 +3,8 @@ import Link from "next/link";
 import { Search, SlidersHorizontal } from "lucide-react";
 import { listPublishedCourses } from "@/services/course.service";
 import { listCategoriesWithCounts } from "@/services/category.service";
+import { getOptionalSession } from "@/lib/auth/guards";
+import { listMyEnrollments } from "@/services/enrollment.service";
 import { courseListQuerySchema } from "@/lib/validation/schemas";
 import { CourseCard } from "@/components/course/course-card";
 import { CourseCardSkeleton } from "@/components/ui/skeleton";
@@ -39,11 +41,21 @@ async function CatalogList({ searchParams }: { searchParams: Promise<Record<stri
     ? parsed.data
     : { sort: "popular" as const, page: 1, perPage: 9 };
 
-  const [{ rows, total }, categories] = await Promise.all([
+  const [session, { rows, total }, categories] = await Promise.all([
+    getOptionalSession(),
     listPublishedCourses(filter),
     listCategoriesWithCounts(),
   ]);
   const totalPages = Math.max(1, Math.ceil(total / filter.perPage));
+
+  // Signed-in students see their own progress on enrolled course cards.
+  let progressByCourse: Map<string, number> | null = null;
+  if (session?.user.role === "student") {
+    const mine = await listMyEnrollments(session.user);
+    progressByCourse = new Map(
+      mine.filter((m) => m.status !== "dropped").map((m) => [m.courseId, m.percent] as const),
+    );
+  }
 
   return (
     <div className="mt-8 grid gap-8 lg:grid-cols-[240px_1fr]">
@@ -125,6 +137,7 @@ async function CatalogList({ searchParams }: { searchParams: Promise<Record<stri
                 enrollmentsCount={c.enrollmentsCount}
                 category={c.category}
                 instructorNames={c.instructorNames}
+                progressPercent={progressByCourse?.get(c.id) ?? null}
               />
             ))}
           </div>

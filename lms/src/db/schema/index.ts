@@ -7,4 +7,5 @@ export * from "./assessments";
 export * from "./progress";
 export * from "./platform";
 export * from "./users";
+export * from "./ai";
 export * from "./relations";

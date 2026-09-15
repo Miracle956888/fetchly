@@ -17,6 +17,7 @@ export function CourseCard({
   enrollmentsCount,
   category,
   instructorNames,
+  progressPercent = null,
 }: {
   title: string;
   slug: string;
@@ -27,6 +28,8 @@ export function CourseCard({
   enrollmentsCount: number;
   category: { id: string; name: string; slug: string } | null;
   instructorNames: string[];
+  /** Signed-in student's own progress (0–100); null when not enrolled. */
+  progressPercent?: number | null;
 }) {
   return (
     <Link
@@ -57,6 +60,24 @@ export function CourseCard({
           <p className="mt-3 border-t border-ink-100 pt-3 text-[12px] text-ink-500">
             Taught by <span className="font-medium text-ink-700">{instructorNames.join(", ")}</span>
           </p>
+        )}
+        {progressPercent != null && (
+          <div className="mt-3 border-t border-ink-100 pt-3">
+            <div className="flex items-center justify-between text-[12px]">
+              <span className="font-medium text-ink-700">Your progress</span>
+              <span className="text-ink-500">{progressPercent}%</span>
+            </div>
+            <div
+              role="progressbar"
+              aria-valuenow={progressPercent}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={`Your progress in ${title}`}
+              className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-ink-100"
+            >
+              <div className="h-full rounded-full bg-brand-600" style={{ width: `${progressPercent}%` }} />
+            </div>
+          </div>
         )}
       </div>
     </Link>

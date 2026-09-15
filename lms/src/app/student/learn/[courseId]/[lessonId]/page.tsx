@@ -7,6 +7,7 @@ import { getDb } from "@/db/client";
 import { exercises, lessons, quizzes } from "@/db/schema";
 import { asc, eq } from "drizzle-orm";
 import { LessonContent, StarterCode } from "@/components/course/lesson-content";
+import { AssistantPanel } from "@/components/ai/assistant-panel";
 import { LessonCompleteButton } from "@/components/forms/lesson-complete-button";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -202,6 +203,14 @@ export default async function LessonPage({ params }: { params: Promise<{ courseI
           )}
         </aside>
       </div>
+
+      {/* Learning Assistant (subtle overlay — the lesson stays primary) */}
+      <AssistantPanel
+        courseId={courseId}
+        lessonId={lessonId}
+        courseTitle={detail.course.title}
+        lessonTitle={lesson.title}
+      />
     </div>
   );
 }

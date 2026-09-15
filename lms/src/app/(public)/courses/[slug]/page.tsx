@@ -145,17 +145,35 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
         {/* Enrollment card */}
         <aside className="lg:sticky lg:top-24 lg:self-start">
           <div className="rounded-card border border-ink-200/80 bg-surface p-6 shadow-card">
-            <h2 className="font-display text-lg font-semibold text-ink-900">Enroll in this course</h2>
-            <p className="mt-1.5 text-[13px] text-ink-500">
-              Free to enroll. Learn at your own pace — your progress is saved automatically.
-            </p>
+            {enrolled ? (
+              <>
+                <h2 className="font-display text-lg font-semibold text-ink-900">You&apos;re enrolled</h2>
+                <p className="mt-1.5 text-[13px] text-ink-500">
+                  Pick up where you left off — your progress is saved automatically.
+                </p>
+              </>
+            ) : session ? (
+              <>
+                <h2 className="font-display text-lg font-semibold text-ink-900">Enroll in this course</h2>
+                <p className="mt-1.5 text-[13px] text-ink-500">
+                  Free to enroll. Learn at your own pace — your progress is saved automatically.
+                </p>
+              </>
+            ) : (
+              <>
+                <h2 className="font-display text-lg font-semibold text-ink-900">Create an account to start learning</h2>
+                <p className="mt-1.5 text-[13px] text-ink-500">
+                  Free. Your enrollment and progress are saved to your account.
+                </p>
+              </>
+            )}
             <div className="mt-5">
               {session ? (
                 <EnrollButton courseId={detail.course.id} enrolled={enrolled} nextHref={continueHref} />
               ) : (
                 <div className="flex flex-col gap-2">
                   <Button href={`/register?next=${encodeURIComponent(`/courses/${slug}`)}`} size="lg" className="w-full">
-                    Enroll for free
+                    Create free account
                   </Button>
                   <Button href={`/login?next=${encodeURIComponent(`/courses/${slug}`)}`} variant="outline" size="lg" className="w-full">
                     I already have an account

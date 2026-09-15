@@ -147,10 +147,10 @@ async function main() {
   for (const c of devCategories) {
     const [row] = await db
       .insert(categories)
-      .values({ name: c.name, slug: c.slug, description: c.description, sortOrder: c.sortOrder })
+      .values({ name: c.name, slug: c.slug, description: c.description, section: c.section, sortOrder: c.sortOrder })
       .onConflictDoUpdate({
         target: categories.slug,
-        set: { name: c.name, description: c.description, sortOrder: c.sortOrder, updatedAt: new Date() },
+        set: { name: c.name, description: c.description, section: c.section, sortOrder: c.sortOrder, updatedAt: new Date() },
       })
       .returning();
     categoryBy.set(c.slug, row.id);
