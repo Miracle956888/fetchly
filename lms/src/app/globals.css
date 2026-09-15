@@ -1,0 +1,158 @@
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Learnly design tokens
+   A restrained, editorial-technical language: paper background, deep navy
+   ink, one royal-blue accent. Flat surfaces with hairline borders instead
+   of glassmorphism and heavy shadows.
+   ───────────────────────────────────────────────────────────────────────── */
+@theme {
+  /* Typography */
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Sora Variable", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  /* Surfaces */
+  --color-paper: #fafaf8;
+  --color-surface: #ffffff;
+
+  /* Ink — neutral scale with a navy undertone (text, borders) */
+  --color-ink-50: #f4f6f8;
+  --color-ink-100: #e9edf1;
+  --color-ink-200: #d5dbe2;
+  --color-ink-300: #b4beca;
+  --color-ink-400: #8d9aab;
+  --color-ink-500: #67758a;
+  --color-ink-600: #4e5d72;
+  --color-ink-700: #3c4a5d;
+  --color-ink-800: #273344;
+  --color-ink-900: #17222f;
+  --color-ink-950: #0d141d;
+
+  /* Brand — royal blue (single accent, used with intent) */
+  --color-brand-50: #eef3fc;
+  --color-brand-100: #dce6f9;
+  --color-brand-200: #b9cdf3;
+  --color-brand-300: #8caee8;
+  --color-brand-400: #5d89db;
+  --color-brand-500: #3b6bc9;
+  --color-brand-600: #2b54ae;
+  --color-brand-700: #24448e;
+  --color-brand-800: #1f3872;
+  --color-brand-900: #1a2c58;
+
+  /* Semantic */
+  --color-success-50: #eaf5ee;
+  --color-success-100: #d6ebdf;
+  --color-success-600: #2e7d4f;
+  --color-success-700: #256a42;
+  --color-warning-50: #fdf3e7;
+  --color-warning-100: #fae5cc;
+  --color-warning-600: #b45309;
+  --color-warning-700: #92400e;
+  --color-danger-50: #fbefee;
+  --color-danger-100: #f6dad8;
+  --color-danger-600: #bf3b36;
+  --color-danger-700: #9d2f2b;
+
+  /* Code blocks (dark, high contrast) */
+  --color-code-bg: #101823;
+  --color-code-text: #d8e1ec;
+  --color-code-muted: #6b7f96;
+
+  /* Shape & elevation (deliberately subtle) */
+  --radius-btn: 8px;
+  --radius-card: 10px;
+  --shadow-card: 0 1px 2px 0 rgb(13 20 29 / 0.05);
+  --shadow-pop: 0 4px 16px -2px rgb(13 20 29 / 0.14);
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-paper text-ink-800 font-sans antialiased;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display text-ink-900;
+    letter-spacing: -0.015em;
+  }
+
+  ::selection {
+    background: var(--color-brand-100);
+    color: var(--color-brand-900);
+  }
+
+  /* Visible, consistent keyboard focus */
+  :focus-visible {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Eyebrow label above section headings */
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-500;
+  }
+
+  /* Prose styling for rendered lesson markdown */
+  .lesson-content {
+    @apply text-[15px] leading-7 text-ink-800;
+  }
+  .lesson-content h2 {
+    @apply mt-8 mb-3 text-xl font-semibold;
+  }
+  .lesson-content h3 {
+    @apply mt-6 mb-2 text-base font-semibold;
+  }
+  .lesson-content p {
+    @apply my-4;
+  }
+  .lesson-content ul,
+  .lesson-content ol {
+    @apply my-4 pl-6;
+  }
+  .lesson-content ul {
+    list-style: disc;
+  }
+  .lesson-content ol {
+    list-style: decimal;
+  }
+  .lesson-content li {
+    @apply my-1.5;
+  }
+  .lesson-content li::marker {
+    color: var(--color-ink-400);
+  }
+  .lesson-content code:not(pre code) {
+    @apply rounded bg-ink-100 px-1.5 py-0.5 font-mono text-[13px] text-ink-900;
+  }
+  .lesson-content pre {
+    @apply my-5 overflow-x-auto rounded-lg p-4 font-mono text-[13px] leading-6;
+    background: var(--color-code-bg);
+    color: var(--color-code-text);
+  }
+  .lesson-content pre code {
+    color: inherit;
+  }
+  .lesson-content blockquote {
+    @apply my-5 rounded-r-md border-l-4 border-brand-300 bg-brand-50 px-4 py-3 text-ink-800;
+  }
+  .lesson-content a {
+    @apply text-brand-700 underline underline-offset-2;
+  }
+}
