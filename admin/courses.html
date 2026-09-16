@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Course Catalog Management | Apex ICT Academy</title>
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+
+  <div class="admin-layout">
+    <!-- Sidebar -->
+    <aside class="admin-sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="16 18 22 12 16 6"></polyline>
+            <polyline points="8 6 2 12 8 18"></polyline>
+          </svg>
+          <span>Apex ICT</span>
+        </div>
+        <span class="brand-badge">Admin</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Main Navigation</div>
+
+        <a href="/admin/dashboard" class="sidebar-link">
+          <div class="sidebar-link-content">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+            <span>Dashboard</span>
+          </div>
+        </a>
+
+        <a href="/admin/leads" class="sidebar-link">
+          <div class="sidebar-link-content">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+            <span>Leads</span>
+          </div>
+          <span class="sidebar-badge new-leads-count-badge" style="display: none;">0</span>
+        </a>
+
+        <a href="/admin/courses" class="sidebar-link active">
+          <div class="sidebar-link-content">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+            <span>Courses</span>
+          </div>
+        </a>
+
+        <a href="/admin/analytics" class="sidebar-link">
+          <div class="sidebar-link-content">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="20" x2="18" y2="10"></line>
+              <line x1="12" y1="20" x2="12" y2="4"></line>
+              <line x1="6" y1="20" x2="6" y2="14"></line>
+            </svg>
+            <span>Reports & Analytics</span>
+          </div>
+        </a>
+
+        <div class="nav-section-label" style="margin-top: 1rem;">System</div>
+
+        <a href="/" target="_blank" class="sidebar-link">
+          <div class="sidebar-link-content">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+            <span>Public Website</span>
+          </div>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="admin-user-pill">
+          <div class="user-avatar-sm" id="adminUserAvatar">AD</div>
+          <div class="admin-user-info">
+            <span class="admin-user-name" id="adminUserName">Admin</span>
+            <span class="admin-user-role" id="adminUserRole">Super Admin</span>
+          </div>
+        </div>
+        <button type="button" class="btn-sidebar-logout btn-admin-logout" title="Sign out">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Canvas -->
+    <main class="admin-main">
+      <!-- Topbar -->
+      <header class="admin-topbar">
+        <div class="topbar-left">
+          <button type="button" class="sidebar-mobile-toggle" id="adminSidebarToggle" aria-label="Toggle navigation menu">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
+          <h2 class="topbar-page-title">Course Management</h2>
+        </div>
+
+        <div class="topbar-right">
+          <button type="button" id="btnOpenAddCourseModal" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
+            + Add New Course
+          </button>
+        </div>
+      </header>
+
+      <!-- Content -->
+      <div class="admin-content">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+              </svg>
+              <span>Available ICT Courses</span>
+            </div>
+            <div class="panel-actions">
+              <span style="font-size: 0.85rem; color: var(--text-muted);">
+                Active courses instantly appear in the public registration form.
+              </span>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Course Name</th>
+                  <th>Category</th>
+                  <th>Duration</th>
+                  <th>Description</th>
+                  <th>Inquiries</th>
+                  <th>Status</th>
+                  <th>Created</th>
+                  <th style="text-align: right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="coursesTableBody">
+                <tr>
+                  <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                    Loading courses...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Add Course Modal -->
+  <div class="modal-backdrop" id="addCourseModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Add New ICT Course</h3>
+        <button type="button" class="modal-close-btn" data-close-modal="addCourseModal">&times;</button>
+      </div>
+
+      <form id="addCourseForm">
+        <div class="modal-body">
+          <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <div class="form-group">
+              <label for="newCourseName">Course Name <span style="color:var(--danger)">*</span></label>
+              <input type="text" id="newCourseName" class="filter-input" placeholder="e.g. Cloud Computing & DevOps" required>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+              <div class="form-group">
+                <label for="newCourseCategory">Category</label>
+                <input type="text" id="newCourseCategory" class="filter-input" placeholder="e.g. Cloud Architecture" value="Software Development">
+              </div>
+
+              <div class="form-group">
+                <label for="newCourseDuration">Duration</label>
+                <input type="text" id="newCourseDuration" class="filter-input" placeholder="e.g. 10 Weeks" value="8 Weeks">
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+              <div class="form-group">
+                <label for="newCourseIcon">Icon Style</label>
+                <select id="newCourseIcon" class="filter-input">
+                  <option value="code">Code / Development</option>
+                  <option value="terminal">Terminal / Python</option>
+                  <option value="cpu">CPU / JavaScript</option>
+                  <option value="layout">Layout / HTML & CSS</option>
+                  <option value="pen-tool">Design / UI & UX</option>
+                  <option value="file-text">Document / MS Office</option>
+                  <option value="database">Database / SQL</option>
+                  <option value="server">Server / Networking</option>
+                  <option value="shield">Shield / Cybersecurity</option>
+                  <option value="bar-chart">Chart / Data Analysis</option>
+                  <option value="more-horizontal">General / Other</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="newCourseStatus">Status</label>
+                <select id="newCourseStatus" class="filter-input">
+                  <option value="Active" selected>Active (Available on form)</option>
+                  <option value="Inactive">Inactive (Hidden)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="newCourseDesc">Course Description</label>
+              <textarea id="newCourseDesc" class="filter-input" rows="3" placeholder="Summary of course objectives, curriculum, and practical projects..." style="resize: vertical;"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-close-modal="addCourseModal">Cancel</button>
+          <button type="submit" id="btnSubmitNewCourse" class="btn btn-primary">Create Course</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit Course Modal -->
+  <div class="modal-backdrop" id="editCourseModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Edit Course</h3>
+        <button type="button" class="modal-close-btn" data-close-modal="editCourseModal">&times;</button>
+      </div>
+
+      <form id="editCourseForm">
+        <div class="modal-body">
+          <input type="hidden" id="editCourseId">
+
+          <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <div class="form-group">
+              <label for="editCourseName">Course Name <span style="color:var(--danger)">*</span></label>
+              <input type="text" id="editCourseName" class="filter-input" required>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+              <div class="form-group">
+                <label for="editCourseCategory">Category</label>
+                <input type="text" id="editCourseCategory" class="filter-input" required>
+              </div>
+
+              <div class="form-group">
+                <label for="editCourseDuration">Duration</label>
+                <input type="text" id="editCourseDuration" class="filter-input" required>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+              <div class="form-group">
+                <label for="editCourseIcon">Icon Style</label>
+                <select id="editCourseIcon" class="filter-input">
+                  <option value="code">Code / Development</option>
+                  <option value="terminal">Terminal / Python</option>
+                  <option value="cpu">CPU / JavaScript</option>
+                  <option value="layout">Layout / HTML & CSS</option>
+                  <option value="pen-tool">Design / UI & UX</option>
+                  <option value="file-text">Document / MS Office</option>
+                  <option value="database">Database / SQL</option>
+                  <option value="server">Server / Networking</option>
+                  <option value="shield">Shield / Cybersecurity</option>
+                  <option value="bar-chart">Chart / Data Analysis</option>
+                  <option value="more-horizontal">General / Other</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="editCourseStatus">Status</label>
+                <select id="editCourseStatus" class="filter-input">
+                  <option value="Active">Active (Available on form)</option>
+                  <option value="Inactive">Inactive (Hidden)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="editCourseDesc">Course Description</label>
+              <textarea id="editCourseDesc" class="filter-input" rows="3" style="resize: vertical;"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-close-modal="editCourseModal">Cancel</button>
+          <button type="submit" id="btnSubmitEditCourse" class="btn btn-primary">Update Course</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/courses.js"></script>
+</body>
+</html>

@@ -1,6 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /admin
-Disallow: /downloads
-
-Sitemap: https://fetchly.example.com/sitemap.xml

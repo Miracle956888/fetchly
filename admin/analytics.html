@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analytics & Reports | Apex ICT Academy</title>
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+
+  <div class="admin-layout">
+    <!-- Sidebar -->
+    <aside class="admin-sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="16 18 22 12 16 6"></polyline>
+            <polyline points="8 6 2 12 8 18"></polyline>
+          </svg>
+          <span>Apex ICT</span>
+        </div>
+        <span class="brand-badge">Admin</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Main Navigation</div>
+
+        <a href="/admin/dashboard" class="sidebar-link">
+          <div class="sidebar-link-content">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+            <span>Dashboard</span>
+          </div>
+        </a>
+
+        <a href="/admin/leads" class="sidebar-link">
+          <div class="sidebar-link-content">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+            <span>Leads</span>
+          </div>
+          <span class="sidebar-badge new-leads-count-badge" style="display: none;">0</span>
+        </a>
+
+        <a href="/admin/courses" class="sidebar-link">
+          <div class="sidebar-link-content">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+            <span>Courses</span>
+          </div>
+        </a>
+
+        <a href="/admin/analytics" class="sidebar-link active">
+          <div class="sidebar-link-content">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="20" x2="18" y2="10"></line>
+              <line x1="12" y1="20" x2="12" y2="4"></line>
+              <line x1="6" y1="20" x2="6" y2="14"></line>
+            </svg>
+            <span>Reports & Analytics</span>
+          </div>
+        </a>
+
+        <div class="nav-section-label" style="margin-top: 1rem;">System</div>
+
+        <a href="/" target="_blank" class="sidebar-link">
+          <div class="sidebar-link-content">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+            <span>Public Website</span>
+          </div>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="admin-user-pill">
+          <div class="user-avatar-sm" id="adminUserAvatar">AD</div>
+          <div class="admin-user-info">
+            <span class="admin-user-name" id="adminUserName">Admin</span>
+            <span class="admin-user-role" id="adminUserRole">Super Admin</span>
+          </div>
+        </div>
+        <button type="button" class="btn-sidebar-logout btn-admin-logout" title="Sign out">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Canvas -->
+    <main class="admin-main">
+      <!-- Topbar -->
+      <header class="admin-topbar">
+        <div class="topbar-left">
+          <button type="button" class="sidebar-mobile-toggle" id="adminSidebarToggle" aria-label="Toggle navigation menu">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
+          <h2 class="topbar-page-title">Reports & Analytics</h2>
+        </div>
+
+        <div class="topbar-right">
+          <a href="/admin/leads/export" target="_blank" class="public-site-link">
+            <span>Download All Data (CSV) &darr;</span>
+          </a>
+        </div>
+      </header>
+
+      <!-- Content -->
+      <div class="admin-content">
+        <!-- Section 19: Analytics 4-Block Breakdown -->
+        <div class="analytics-grid">
+          <!-- 1. Leads by Course -->
+          <div class="chart-card">
+            <div class="chart-card-title">
+              <span>Course Demand Distribution</span>
+              <span id="analyticsTotalCourses" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">-</span>
+            </div>
+            <div class="chart-bars-list" id="analyticsCoursesList">
+              <div style="color: var(--text-muted); font-size: 0.85rem;">Loading metrics...</div>
+            </div>
+          </div>
+
+          <!-- 2. Leads by Status Pipeline -->
+          <div class="chart-card">
+            <div class="chart-card-title">
+              <span>Lead Pipeline Status</span>
+              <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">Conversion Flow</span>
+            </div>
+            <div class="chart-bars-list" id="analyticsStatusList">
+              <div style="color: var(--text-muted); font-size: 0.85rem;">Loading metrics...</div>
+            </div>
+          </div>
+
+          <!-- 3. Learning Mode Comparison -->
+          <div class="chart-card">
+            <div class="chart-card-title">
+              <span>Physical vs Online Learning</span>
+              <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">Preference</span>
+            </div>
+            <div class="chart-bars-list" id="analyticsModesList">
+              <div style="color: var(--text-muted); font-size: 0.85rem;">Loading metrics...</div>
+            </div>
+          </div>
+
+          <!-- 4. Leads by Referral Source -->
+          <div class="chart-card">
+            <div class="chart-card-title">
+              <span>Marketing Referral Channels</span>
+              <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">Acquisition</span>
+            </div>
+            <div class="chart-bars-list" id="analyticsReferralsList">
+              <div style="color: var(--text-muted); font-size: 0.85rem;">Loading metrics...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/analytics.js"></script>
+</body>
+</html>

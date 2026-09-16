@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard | Apex ICT Lead Management</title>
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+
+  <div class="admin-layout">
+    <!-- Sidebar -->
+    <aside class="admin-sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="16 18 22 12 16 6"></polyline>
+            <polyline points="8 6 2 12 8 18"></polyline>
+          </svg>
+          <span>Apex ICT</span>
+        </div>
+        <span class="brand-badge">Admin</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Main Navigation</div>
+
+        <a href="/admin/dashboard" class="sidebar-link active">
+          <div class="sidebar-link-content">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+            <span>Dashboard</span>
+          </div>
+        </a>
+
+        <a href="/admin/leads" class="sidebar-link">
+          <div class="sidebar-link-content">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+            <span>Leads</span>
+          </div>
+          <span class="sidebar-badge new-leads-count-badge" style="display: none;">0</span>
+        </a>
+
+        <a href="/admin/courses" class="sidebar-link">
+          <div class="sidebar-link-content">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+            <span>Courses</span>
+          </div>
+        </a>
+
+        <a href="/admin/analytics" class="sidebar-link">
+          <div class="sidebar-link-content">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="20" x2="18" y2="10"></line>
+              <line x1="12" y1="20" x2="12" y2="4"></line>
+              <line x1="6" y1="20" x2="6" y2="14"></line>
+            </svg>
+            <span>Reports & Analytics</span>
+          </div>
+        </a>
+
+        <div class="nav-section-label" style="margin-top: 1rem;">System</div>
+
+        <a href="/" target="_blank" class="sidebar-link">
+          <div class="sidebar-link-content">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+            <span>Public Website</span>
+          </div>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="admin-user-pill">
+          <div class="user-avatar-sm" id="adminUserAvatar">AD</div>
+          <div class="admin-user-info">
+            <span class="admin-user-name" id="adminUserName">Admin</span>
+            <span class="admin-user-role" id="adminUserRole">Super Admin</span>
+          </div>
+        </div>
+        <button type="button" class="btn-sidebar-logout btn-admin-logout" title="Sign out">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Canvas -->
+    <main class="admin-main">
+      <!-- Topbar -->
+      <header class="admin-topbar">
+        <div class="topbar-left">
+          <button type="button" class="sidebar-mobile-toggle" id="adminSidebarToggle" aria-label="Toggle navigation menu">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
+          <h2 class="topbar-page-title">Executive Dashboard</h2>
+        </div>
+
+        <div class="topbar-right">
+          <a href="/admin/leads?status=New" class="notification-badge-btn" id="headerNewLeadsNotice" style="display: none;">
+            New Leads: 0
+          </a>
+          <a href="/" target="_blank" class="public-site-link">
+            <span>View Landing Page &rarr;</span>
+          </a>
+        </div>
+      </header>
+
+      <!-- Dashboard Content -->
+      <div class="admin-content">
+        <!-- Section 7: Summary Cards -->
+        <section class="stats-grid" id="statsGrid">
+          <!-- Total Leads -->
+          <div class="stat-card card-total">
+            <div class="stat-card-header">
+              <span class="stat-card-title">Total Leads</span>
+              <div class="stat-card-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+              </div>
+            </div>
+            <div class="stat-card-value" id="statTotalLeads">-</div>
+            <div class="stat-card-footer">All submitted inquiries</div>
+          </div>
+
+          <!-- New Leads -->
+          <div class="stat-card card-new">
+            <div class="stat-card-header">
+              <span class="stat-card-title">New Leads</span>
+              <div class="stat-card-icon" style="background-color: var(--status-new-bg); color: var(--status-new);">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+              </div>
+            </div>
+            <div class="stat-card-value" id="statNewLeads" style="color: var(--admin-primary);">-</div>
+            <div class="stat-card-footer">Awaiting first contact</div>
+          </div>
+
+          <!-- Contacted Leads -->
+          <div class="stat-card card-contacted">
+            <div class="stat-card-header">
+              <span class="stat-card-title">Contacted</span>
+              <div class="stat-card-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+              </div>
+            </div>
+            <div class="stat-card-value" id="statContactedLeads">-</div>
+            <div class="stat-card-footer">Initial contact made</div>
+          </div>
+
+          <!-- Enrolled Leads -->
+          <div class="stat-card card-enrolled">
+            <div class="stat-card-header">
+              <span class="stat-card-title">Enrolled</span>
+              <div class="stat-card-icon" style="background-color: var(--status-enrolled-bg); color: var(--status-enrolled);">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+              </div>
+            </div>
+            <div class="stat-card-value" id="statEnrolledLeads" style="color: var(--status-enrolled);">-</div>
+            <div class="stat-card-footer">Successfully registered</div>
+          </div>
+
+          <!-- Today's Leads -->
+          <div class="stat-card card-today">
+            <div class="stat-card-header">
+              <span class="stat-card-title">Today's Leads</span>
+              <div class="stat-card-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line></svg>
+              </div>
+            </div>
+            <div class="stat-card-value" id="statTodayLeads">-</div>
+            <div class="stat-card-footer">Received today</div>
+          </div>
+
+          <!-- This Week's Leads -->
+          <div class="stat-card card-week">
+            <div class="stat-card-header">
+              <span class="stat-card-title">This Week</span>
+              <div class="stat-card-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+              </div>
+            </div>
+            <div class="stat-card-value" id="statWeekLeads">-</div>
+            <div class="stat-card-footer">Past 7 days</div>
+          </div>
+        </section>
+
+        <!-- Analytics Highlights Grid -->
+        <div class="analytics-grid">
+          <!-- Leads By Course -->
+          <div class="chart-card">
+            <div class="chart-card-title">
+              <span>Leads by Course</span>
+              <a href="/admin/courses" style="font-size: 0.8rem; font-weight: 600;">Manage Courses &rarr;</a>
+            </div>
+            <div class="chart-bars-list" id="chartCoursesList">
+              <div style="color: var(--text-muted); font-size: 0.85rem;">Loading metrics...</div>
+            </div>
+          </div>
+
+          <!-- Leads by Learning Mode & Referral -->
+          <div class="chart-card">
+            <div class="chart-card-title">
+              <span>Learning Mode & Referral Sources</span>
+              <a href="/admin/analytics" style="font-size: 0.8rem; font-weight: 600;">Full Analytics &rarr;</a>
+            </div>
+            
+            <div style="margin-bottom: 1.5rem;">
+              <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 0.5rem; text-transform: uppercase;">
+                Mode Preference
+              </div>
+              <div class="chart-bars-list" id="chartModesList"></div>
+            </div>
+
+            <div>
+              <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 0.5rem; text-transform: uppercase;">
+                Top Referral Sources
+              </div>
+              <div class="chart-bars-list" id="chartReferralsList"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Leads Panel -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 14 14"></polyline>
+              </svg>
+              <span>Recent Inquiries</span>
+            </div>
+            <div class="panel-actions">
+              <a href="/admin/leads" class="btn btn-secondary" style="padding: 0.45rem 0.85rem; font-size: 0.85rem;">
+                View All Leads &rarr;
+              </a>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Full Name</th>
+                  <th>Phone / WhatsApp</th>
+                  <th>Email</th>
+                  <th>Course</th>
+                  <th>Mode</th>
+                  <th>Status</th>
+                  <th>Date Submitted</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="recentLeadsTableBody">
+                <tr>
+                  <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 2rem;">Loading recent leads...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>

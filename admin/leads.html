@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Leads Management | Apex ICT Academy</title>
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+
+  <div class="admin-layout">
+    <!-- Sidebar -->
+    <aside class="admin-sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="16 18 22 12 16 6"></polyline>
+            <polyline points="8 6 2 12 8 18"></polyline>
+          </svg>
+          <span>Apex ICT</span>
+        </div>
+        <span class="brand-badge">Admin</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Main Navigation</div>
+
+        <a href="/admin/dashboard" class="sidebar-link">
+          <div class="sidebar-link-content">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+            <span>Dashboard</span>
+          </div>
+        </a>
+
+        <a href="/admin/leads" class="sidebar-link active">
+          <div class="sidebar-link-content">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+            <span>Leads</span>
+          </div>
+          <span class="sidebar-badge new-leads-count-badge" style="display: none;">0</span>
+        </a>
+
+        <a href="/admin/courses" class="sidebar-link">
+          <div class="sidebar-link-content">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+            <span>Courses</span>
+          </div>
+        </a>
+
+        <a href="/admin/analytics" class="sidebar-link">
+          <div class="sidebar-link-content">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="20" x2="18" y2="10"></line>
+              <line x1="12" y1="20" x2="12" y2="4"></line>
+              <line x1="6" y1="20" x2="6" y2="14"></line>
+            </svg>
+            <span>Reports & Analytics</span>
+          </div>
+        </a>
+
+        <div class="nav-section-label" style="margin-top: 1rem;">System</div>
+
+        <a href="/" target="_blank" class="sidebar-link">
+          <div class="sidebar-link-content">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+            <span>Public Website</span>
+          </div>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="admin-user-pill">
+          <div class="user-avatar-sm" id="adminUserAvatar">AD</div>
+          <div class="admin-user-info">
+            <span class="admin-user-name" id="adminUserName">Admin</span>
+            <span class="admin-user-role" id="adminUserRole">Super Admin</span>
+          </div>
+        </div>
+        <button type="button" class="btn-sidebar-logout btn-admin-logout" title="Sign out">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Canvas -->
+    <main class="admin-main">
+      <!-- Topbar -->
+      <header class="admin-topbar">
+        <div class="topbar-left">
+          <button type="button" class="sidebar-mobile-toggle" id="adminSidebarToggle" aria-label="Toggle navigation menu">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
+          <h2 class="topbar-page-title">Leads Directory</h2>
+        </div>
+
+        <div class="topbar-right">
+          <a href="/admin/leads?status=New" class="notification-badge-btn" id="headerNewLeadsNotice" style="display: none;">
+            New Leads: 0
+          </a>
+          <button type="button" id="exportLeadsCsvBtn" class="btn btn-secondary" style="padding: 0.45rem 0.85rem; font-size: 0.85rem;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>Export CSV</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Content -->
+      <div class="admin-content">
+        <!-- Lead Management Panel -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="8.5" cy="7" r="4"></circle>
+                <polyline points="17 11 19 13 23 9"></polyline>
+              </svg>
+              <span>Submitted Inquiries</span>
+              <span id="totalLeadsCountPill" style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); background: var(--canvas); padding: 0.2rem 0.6rem; border-radius: var(--radius-full); margin-left: 0.5rem;">
+                0 leads
+              </span>
+            </div>
+
+            <div class="panel-actions">
+              <label for="filterLimit" style="font-size: 0.8rem; color: var(--text-muted);">Rows per page:</label>
+              <select id="filterLimit" class="filter-input" style="width: auto; padding: 0.4rem 0.65rem;">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Section 12: Search & Filter Toolbar -->
+          <div class="filters-bar" id="filtersBar">
+            <!-- Search -->
+            <div>
+              <input
+                type="text"
+                id="filterSearch"
+                class="filter-input"
+                placeholder="🔍 Search name, phone, email..."
+                autocomplete="off"
+              >
+            </div>
+
+            <!-- Course Filter -->
+            <div>
+              <select id="filterCourse" class="filter-input">
+                <option value="">All Courses</option>
+                <!-- Populated dynamically -->
+              </select>
+            </div>
+
+            <!-- Learning Mode -->
+            <div>
+              <select id="filterMode" class="filter-input">
+                <option value="">All Modes</option>
+                <option value="Physical">Physical</option>
+                <option value="Online">Online</option>
+              </select>
+            </div>
+
+            <!-- Communication Method -->
+            <div>
+              <select id="filterComm" class="filter-input">
+                <option value="">All Contacts</option>
+                <option value="WhatsApp">WhatsApp</option>
+                <option value="Phone Call">Phone Call</option>
+                <option value="Email">Email</option>
+                <option value="SMS">SMS</option>
+              </select>
+            </div>
+
+            <!-- Referral Source -->
+            <div>
+              <select id="filterReferral" class="filter-input">
+                <option value="">All Referrals</option>
+                <option value="Facebook">Facebook</option>
+                <option value="Instagram">Instagram</option>
+                <option value="Google">Google</option>
+                <option value="Friend or Family">Friend/Family</option>
+                <option value="WhatsApp">WhatsApp</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <!-- Status Filter -->
+            <div>
+              <select id="filterStatus" class="filter-input">
+                <option value="">All Statuses</option>
+                <option value="New">New</option>
+                <option value="Contacted">Contacted</option>
+                <option value="Interested">Interested</option>
+                <option value="Enrolled">Enrolled</option>
+                <option value="Not Interested">Not Interested</option>
+                <option value="Follow Up">Follow Up</option>
+                <option value="Closed">Closed</option>
+              </select>
+            </div>
+
+            <!-- Reset Button -->
+            <div>
+              <button type="button" id="btnResetFilters" class="btn-filter-reset">
+                Reset
+              </button>
+            </div>
+          </div>
+
+          <!-- Section 8: Leads Table -->
+          <div class="table-responsive">
+            <table class="data-table" id="leadsTable">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Full Name</th>
+                  <th>Phone / WhatsApp</th>
+                  <th>Email</th>
+                  <th>Course</th>
+                  <th>Mode</th>
+                  <th>Communication</th>
+                  <th>Referral</th>
+                  <th>Status</th>
+                  <th>Date Submitted</th>
+                  <th style="text-align: right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="leadsTableBody">
+                <tr>
+                  <td colspan="11" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                    Loading leads data...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Section 13: Pagination Bar -->
+          <div class="pagination-bar" id="paginationBar">
+            <div class="pagination-info" id="paginationInfo">Showing 0 to 0 of 0 entries</div>
+            <div class="pagination-controls" id="paginationControls">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Section 9: View Complete Lead Information Modal -->
+  <div class="modal-backdrop" id="viewLeadModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <h3 class="modal-title" id="viewModalTitle">Lead Profile</h3>
+          <span class="status-badge" id="viewModalStatusBadge">New</span>
+        </div>
+        <button type="button" class="modal-close-btn" data-close-modal="viewLeadModal">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Section 11: Quick Contact Actions Bar -->
+        <div class="contact-actions-bar">
+          <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Direct Contact:</span>
+          <a href="#" id="viewLeadWhatsAppBtn" target="_blank" class="btn-contact btn-whatsapp">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.664-.698c.969.586 1.761.882 2.796.882 3.183 0 5.769-2.587 5.769-5.768 0-3.179-2.586-5.767-5.769-5.767zm7.653 5.766c0 4.22-3.432 7.653-7.653 7.653-1.309 0-2.536-.33-3.619-.914l-4.041 1.059 1.08-3.935c-.689-1.144-1.073-2.48-1.073-3.863 0-4.221 3.433-7.653 7.653-7.653 4.221 0 7.653 3.432 7.653 7.653z"/></svg>
+            WhatsApp
+          </a>
+          <a href="#" id="viewLeadCallBtn" class="btn-contact btn-call">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+            Call
+          </a>
+          <a href="#" id="viewLeadEmailBtn" class="btn-contact btn-email">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+            Email
+          </a>
+        </div>
+
+        <!-- Section 9 Complete Submitted Information Grid -->
+        <div class="lead-detail-grid">
+          <div class="detail-item">
+            <span class="detail-label">Full Name</span>
+            <span class="detail-value" id="viewLeadFullName">-</span>
+          </div>
+
+          <div class="detail-item">
+            <span class="detail-label">Phone / WhatsApp</span>
+            <span class="detail-value" id="viewLeadPhone">-</span>
+          </div>
+
+          <div class="detail-item">
+            <span class="detail-label">Email Address</span>
+            <span class="detail-value" id="viewLeadEmail">-</span>
+          </div>
+
+          <div class="detail-item">
+            <span class="detail-label">ICT Course</span>
+            <span class="detail-value" id="viewLeadCourse">-</span>
+          </div>
+
+          <div class="detail-item">
+            <span class="detail-label">Preferred Learning Mode</span>
+            <span class="detail-value" id="viewLeadMode">-</span>
+          </div>
+
+          <div class="detail-item">
+            <span class="detail-label">Preferred Means of Communication</span>
+            <span class="detail-value" id="viewLeadComm">-</span>
+          </div>
+
+          <div class="detail-item">
+            <span class="detail-label">How They Heard About Us</span>
+            <span class="detail-value" id="viewLeadReferral">-</span>
+          </div>
+
+          <div class="detail-item">
+            <span class="detail-label">Other Referral Details</span>
+            <span class="detail-value" id="viewLeadReferralOther">-</span>
+          </div>
+
+          <div class="detail-item">
+            <span class="detail-label">Date Submitted</span>
+            <span class="detail-value" id="viewLeadCreated">-</span>
+          </div>
+
+          <div class="detail-item">
+            <span class="detail-label">Last Updated</span>
+            <span class="detail-value" id="viewLeadUpdated">-</span>
+          </div>
+        </div>
+
+        <!-- Quick Status Changer -->
+        <div style="background: var(--canvas); border: 1px solid var(--border); padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+          <div>
+            <span style="font-weight: 700; font-size: 0.85rem; color: var(--text-primary);">Change Lead Status:</span>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">Updates pipeline and logs activity</div>
+          </div>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <select id="quickStatusSelect" class="filter-input" style="width: auto;">
+              <option value="New">New</option>
+              <option value="Contacted">Contacted</option>
+              <option value="Interested">Interested</option>
+              <option value="Enrolled">Enrolled</option>
+              <option value="Not Interested">Not Interested</option>
+              <option value="Follow Up">Follow Up</option>
+              <option value="Closed">Closed</option>
+            </select>
+            <button type="button" id="btnUpdateQuickStatus" class="btn btn-primary" style="padding: 0.45rem 0.85rem; font-size: 0.8rem;">
+              Update Status
+            </button>
+          </div>
+        </div>
+
+        <!-- Add Note Section (Section 10) -->
+        <div style="margin-bottom: 1.75rem;">
+          <label for="newNoteInput" style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.4rem; display: block;">
+            Add Internal Note
+          </label>
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="text" id="newNoteInput" class="filter-input" placeholder="e.g. Called student. Interested in Web Development. Follow up on Monday.">
+            <button type="button" id="btnAddNoteBtn" class="btn btn-primary" style="padding: 0.55rem 1rem; font-size: 0.85rem; white-space: nowrap;">
+              Save Note
+            </button>
+          </div>
+        </div>
+
+        <!-- Existing Notes Display -->
+        <div style="margin-bottom: 1.75rem;">
+          <div class="detail-label" style="margin-bottom: 0.4rem;">Lead Notes History</div>
+          <div id="viewLeadNotes" style="background: #ffffff; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.85rem; font-size: 0.85rem; white-space: pre-line; max-height: 120px; overflow-y: auto; color: var(--text-secondary);">
+            No notes recorded.
+          </div>
+        </div>
+
+        <!-- Section 17: Lead Details Timeline / Activity History -->
+        <div>
+          <div class="timeline-section-title">
+            <span>Activity History</span>
+            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">Automated audit trail</span>
+          </div>
+          <ul class="timeline-list" id="viewLeadTimeline">
+            <!-- Rendered via JS -->
+          </ul>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-close-modal="viewLeadModal">Close</button>
+        <button type="button" id="btnOpenEditFromView" class="btn btn-primary">Edit Lead Details</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 10: Edit Lead Modal -->
+  <div class="modal-backdrop" id="editLeadModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Edit Lead Information</h3>
+        <button type="button" class="modal-close-btn" data-close-modal="editLeadModal">&times;</button>
+      </div>
+
+      <form id="editLeadForm">
+        <div class="modal-body">
+          <input type="hidden" id="editLeadId">
+
+          <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <div class="form-group">
+              <label for="editFullName">Full Name</label>
+              <input type="text" id="editFullName" class="filter-input" required>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+              <div class="form-group">
+                <label for="editPhone">Phone / WhatsApp</label>
+                <input type="tel" id="editPhone" class="filter-input" required>
+              </div>
+              <div class="form-group">
+                <label for="editEmail">Email Address</label>
+                <input type="email" id="editEmail" class="filter-input" required>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+              <div class="form-group">
+                <label for="editCourse">Course</label>
+                <select id="editCourse" class="filter-input" required></select>
+              </div>
+              <div class="form-group">
+                <label for="editLearningMode">Learning Mode</label>
+                <select id="editLearningMode" class="filter-input" required>
+                  <option value="Physical">Physical</option>
+                  <option value="Online">Online</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+              <div class="form-group">
+                <label for="editCommMethod">Preferred Communication</label>
+                <select id="editCommMethod" class="filter-input" required>
+                  <option value="WhatsApp">WhatsApp</option>
+                  <option value="Phone Call">Phone Call</option>
+                  <option value="Email">Email</option>
+                  <option value="SMS">SMS</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="editStatus">Status</label>
+                <select id="editStatus" class="filter-input" required>
+                  <option value="New">New</option>
+                  <option value="Contacted">Contacted</option>
+                  <option value="Interested">Interested</option>
+                  <option value="Enrolled">Enrolled</option>
+                  <option value="Not Interested">Not Interested</option>
+                  <option value="Follow Up">Follow Up</option>
+                  <option value="Closed">Closed</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+              <div class="form-group">
+                <label for="editReferral">Referral Source</label>
+                <select id="editReferral" class="filter-input" required>
+                  <option value="Facebook">Facebook</option>
+                  <option value="Instagram">Instagram</option>
+                  <option value="Google">Google</option>
+                  <option value="Friend or Family">Friend or Family</option>
+                  <option value="WhatsApp">WhatsApp</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="editReferralOther">Other Referral Details</label>
+                <input type="text" id="editReferralOther" class="filter-input">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="editNotes">Internal Notes</label>
+              <textarea id="editNotes" class="filter-input" rows="3" style="resize: vertical;"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-close-modal="editLeadModal">Cancel</button>
+          <button type="submit" id="btnSaveEditLead" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Section 10: Delete Lead Confirmation Modal -->
+  <div class="modal-backdrop" id="deleteLeadModal">
+    <div class="modal-dialog" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3 class="modal-title" style="color: var(--danger);">Delete Lead</h3>
+        <button type="button" class="modal-close-btn" data-close-modal="deleteLeadModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.95rem; color: var(--text-body); margin-bottom: 1rem;">
+          Are you sure you want to permanently delete lead for <strong id="deleteLeadTargetName">this student</strong>?
+        </p>
+        <p style="font-size: 0.85rem; color: var(--danger); background: var(--danger-bg); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid #fecaca;">
+          ⚠️ This action cannot be undone. All activity logs and notes associated with this lead will be permanently erased.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <input type="hidden" id="deleteLeadTargetId">
+        <button type="button" class="btn btn-secondary" data-close-modal="deleteLeadModal">Cancel</button>
+        <button type="button" id="btnConfirmDeleteLead" class="btn btn-primary" style="background-color: var(--danger); border-color: var(--danger);">
+          Permanently Delete
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/leads.js"></script>
+</body>
+</html>

@@ -1,221 +1,311 @@
-# Fetchly — Multi-Platform Media Downloader
+# Apex ICT Academy - Full-Stack Lead Generation System
 
-Fetchly is a production-ready web application for downloading **publicly accessible** media from
-supported platforms. Paste a link → analyze → choose format & quality → download MP4 or MP3 with
-real progress, a job queue, FFmpeg processing, automatic cleanup, and a full admin dashboard.
-
-The UI is an original design built around a **white + `#00C9A7`** identity. It takes *functional*
-inspiration from simple downloader tools (paste → inspect → pick → download) and queue-based
-download managers, but shares no layout, branding, or assets with any existing product.
-
-> **Responsible use:** Fetchly is intended for content you own, public-domain content, or content
-> you have explicit permission to save. It does **not** bypass DRM, authentication, paywalls, or
-> any access control, and it refuses private or restricted media.
+A complete, production-ready **ICT Course Lead Generation Website and Lead Management System** built with HTML5, CSS3, Vanilla JavaScript, Node.js, Express.js, and MySQL.
 
 ---
 
-## Enhancement phase (current)
+## 1. Project Overview
 
-- **Automatic URL analysis** — paste or type a link; valid URLs are analyzed automatically
-  (600 ms debounce, no Analyze button). Normalized-URL de-duplication prevents repeat
-  requests (`www.`/`m.` prefixes and tracking params stripped); replacing the URL aborts the
-  in-flight request via AbortController. Clipboard button and drag-and-drop paste included,
-  with live status copy ("Checking link…", "Analyzing TikTok video…", "Ready").
-- **Light & dark themes** — class-based dark mode with semantic tokens
-  (`#0B0F0E` background, `#17201E` cards, mint accent retained), smooth color transitions,
-  localStorage persistence (`fetchly-theme`) with system-preference fallback and no
-  flash-of-wrong-theme (inline pre-paint script).
-- **Real delivery pipeline** — Download creates a queued job; the worker downloads, FFmpeg
-  processes, and the finished file is served through a signed, short-lived delivery URL with
-  correct `Content-Type`, `Content-Disposition: attachment`, actual `Content-Length` and HTTP
-  Range support (206). No file paths are ever exposed; tokens are HMAC-signed per job.
-- **Actual file-size tracking** — the canonical `file_size_bytes` is read from the finished
-  file on disk (verified equal to DB value and HTTP Content-Length); live telemetry
-  (bytes downloaded, speed) is parsed from the engine and shown in the UI alongside the
-  canonical `formatFileSize()` formatter (B/KB/MB/GB/TB, 1024-based).
-- **Delivery analytics** — processing events (`job_created → file_ready`) are recorded
-  separately from delivery events (`download_requested → download_completed`), so the admin
-  dashboard shows both *files generated* and *files actually delivered*, with data totals from
-  DB aggregation queries, plus a temporary-storage monitor (used/free/files/expired).
-- **Download history** — `/downloads` shows thumbnail, platform, format, quality, size,
-  status and date with All/MP4/MP3/Completed/Failed filters. Expired files are reprocessed
-  on "Download again" — never served from deleted storage.
+The **Apex ICT Lead Generation System** is an end-to-end platform engineered for technology training institutes and coding academies. It combines:
+1. **A High-Converting Public Landing Page**: Featuring an interactive course catalog, detailed program outlines, comparison of Physical and Online cohorts, graduate testimonials, and a streamlined multi-field lead capture form.
+2. **A Secure Admin Portal**: Providing institute administrators with real-time analytics, comprehensive lead profiles, automated activity timelines, direct WhatsApp/Call/Email contact triggers, multi-parameter search and filtering, CSV data exports, and dynamic course management.
 
-## Features
+Every submitted inquiry flows directly from the visitor's browser through parameterized Express REST APIs into MySQL and appears immediately in the administrator's dashboard.
 
-- URL-first flow: paste → analyze → preview → choose format/quality → download
-- Provider architecture (YouTube, TikTok, Instagram active; Facebook, X, Reddit, Vimeo, Twitch,
-  Dailymotion, Pinterest on the registry roadmap)
-- Honest results: only formats the source actually reports are shown; progress is real
-- Queue-based download engine (BullMQ + Redis; in-process fallback for local dev)
-- FFmpeg processing layer (remux when possible, MP3 conversion, timeouts, cleanup)
-- Session download manager with multiple concurrent jobs, cancel, retry, remove
-- Admin dashboard: live stats, charts, job management, platform toggles, users, analytics,
-  system health, event logs, settings
-- Automatic file expiration + cleanup workers (no media kept permanently)
-- Security: Helmet, CORS allow-list, layered rate limiting, Zod validation, SSRF-safe URL intake,
-  JWT admin auth in httpOnly cookies, no shell execution anywhere
-- Structured JSON logging with secret redaction and request ids
-- Fully responsive, mobile-first UI · accessible (keyboard, ARIA, reduced motion)
-- SEO pages, Open Graph/Twitter metadata, robots.txt, sitemap.xml, JSON-LD
+---
 
-## Technology stack
+## 2. Technology Stack
 
-| Layer | Technology |
-| --- | --- |
-| Frontend | React 18, Vite 6, TypeScript, Tailwind CSS 4, React Router 6, TanStack Query 5, Lucide icons |
-| Backend | Node.js 20, Express 4, TypeScript (ESM), Zod, Helmet, CORS, express-rate-limit, pino |
-| Queue | BullMQ + Redis (in-process dev fallback) |
-| Media engine | yt-dlp (extraction/download) + FFmpeg (remux/convert) |
-| Database | MySQL 8 + Prisma ORM |
-| Infra | Docker, Docker Compose, Nginx |
+### Frontend (100% Framework-Free)
+* **HTML5**: Semantic markup, accessible input types, and structured landmarks.
+* **CSS3**: Modern responsive layout using CSS custom properties (variables), Flexbox, CSS Grid, animations, and micro-interactions.
+* **Vanilla JavaScript (ES6+)**: Pure client-side logic for dynamic course hydration, asynchronous `fetch()` API calls, client-side validation, duplicate submission debouncing, and DOM management.
+* **Responsive Design**: Mobile-first architecture tested and verified across `320px`, `375px`, `425px`, `768px`, `1024px`, `1366px`, and `1920px`.
 
-## Project structure
+### Backend
+* **Node.js**: Asynchronous runtime environment.
+* **Express.js**: Clean RESTful API architecture with modular routers and centralized error handling.
+* **express-rate-limit**: Abuse prevention and brute-force mitigation for both public lead submissions and admin login endpoints.
+* **Helmet & CORS**: HTTP security headers and cross-origin resource sharing protection.
 
-```
-fetchly/
-├── client/                     # React app
-│   ├── src/components/ui/      # design system (Button, Input, Card, Modal, Tabs, …)
-│   ├── src/components/         # Navbar, Footer, UrlForm, MediaPreview, DownloadCard, …
-│   ├── src/pages/              # Home, Downloads, platform SEO pages, legal, admin/
-│   ├── src/contexts/           # session download manager
-│   ├── src/hooks/              # usePlatforms, useJobPolling
-│   ├── src/lib/api.ts          # typed API client (relative URLs, proxied)
-│   └── public/                 # robots.txt, sitemap.xml, favicon
-├── server/                     # Express API + workers
-│   ├── prisma/schema.prisma    # MySQL schema + seed script
-│   └── src/
-│       ├── config/             # env validation, pino logger
-│       ├── providers/          # MediaProvider interface + one class per platform
-│       ├── services/engine/    # yt-dlp + FFmpeg wrappers (no shell, fixed args)
-│       ├── services/           # analyzeService, downloadService, storage
-│       ├── queues/             # BullMQ or in-process queue
-│       ├── workers/            # standalone worker entry + cleanup worker
-│       ├── controllers/ routes/ middleware/ utils/
-│       └── db/                 # Datastore interface: Prisma(MySQL) + memory(dev)
-├── database/migrations/        # mirrored SQL DDL (Prisma owns migrations)
-├── docker/nginx/               # edge + static-site nginx configs
-├── docker-compose.yml
-└── docs/API.md                 # full REST API reference
-```
+### Database
+* **MySQL**: Relational database storage with InnoDB engine, `utf8mb4` encoding, and foreign key cascades.
+* **mysql2/promise**: High-performance connection pool with 100% prepared/parameterized queries to prevent SQL injection.
 
-## Installation
+### Security & Authentication
+* **bcryptjs**: Salted password hashing (cost factor 10) for administrator credentials.
+* **jsonwebtoken (JWT)** & **Cookie-Parser**: Secure stateless authentication token verification with HTTP-only cookies and Authorization Bearer header support.
+* **Input Sanitization**: Server-side and client-side validation for emails, international/Nigerian phone numbers, and required form fields.
 
-Requirements: Node ≥ 20, npm. For the full pipeline: FFmpeg, yt-dlp, MySQL 8, Redis 7.
+---
+
+## 3. System Requirements
+
+* **Node.js**: Version 18.x, 20.x, or 22.x+
+* **npm**: Version 9.x or 10.x+
+* **MySQL Server** or **MariaDB Server**: Version 5.7+ or 8.0+
+
+---
+
+## 4. How to Install Node.js Dependencies
+
+Clone the repository and install all required backend packages:
 
 ```bash
+git clone https://github.com/Miracle956888/fetchly.git
+cd fetchly
 npm install
-cp .env.example .env           # then edit values (JWT_SECRET, ADMIN_PASSWORD!)
 ```
 
-Install media engines:
+---
+
+## 5. How to Configure MySQL
+
+Ensure your MySQL server is running locally or on a remote host:
 
 ```bash
-sudo apt-get install -y ffmpeg
-pip3 install yt-dlp            # or: pipx install yt-dlp
+# Check MySQL status (Ubuntu / Debian)
+sudo systemctl status mysql
 ```
 
-### Database setup (optional in dev)
-
-- **With MySQL:** set `DATABASE_URL` in `.env`, then
-  `npm run db:generate && npm run db:migrate && npm run db:seed`.
-- **Without:** leave `DATABASE_URL` empty. The API boots with an in-memory persistence adapter
-  (logged loudly). Data does not survive restarts — fine for local development only.
-
-### Redis setup (optional in dev)
-
-- **With Redis:** set `REDIS_URL` → BullMQ queue + standalone worker.
-- **Without:** leave empty → built-in in-process queue (dev only).
-
-## Development commands
+Log into MySQL to verify your administrative user permissions:
 
 ```bash
-npm run dev          # API :3000 + Vite :5173 together
-npm run dev:server   # API only
-npm run dev:client   # frontend only
-npm test             # server test suite (vitest)
-npm run test -w client   # frontend unit tests
-npm run lint         # both workspaces
-npm run build        # server tsc + client production build
+mysql -u root -p
 ```
 
-Open http://localhost:5173 — the dev server proxies `/api` to the backend.
+---
 
-Admin dashboard: http://localhost:5173/admin/login
-Default credentials come from `.env` (`ADMIN_EMAIL` / `ADMIN_PASSWORD`). The admin account is
-seeded automatically on first boot; change both values before any real deployment.
+## 6. How to Create the Database
 
-## Docker deployment
+Create the application database manually or allow the automated initialization script to create it for you:
+
+```sql
+CREATE DATABASE IF NOT EXISTS ict_lead_db
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+```
+
+---
+
+## 7. How to Run the SQL Schema
+
+You can execute the schema file directly into MySQL:
 
 ```bash
-cp .env.example .env           # configure secrets first
-docker compose up -d --build
-docker compose exec backend npx prisma migrate deploy   # apply schema (or use the bundled SQL)
+mysql -u root -p ict_lead_db < server/database/schema.sql
 ```
 
-Services: `nginx` (edge) → `frontend` (static build) + `backend` (API) + `worker`
-(downloads/FFmpeg/cleanup) + `mysql` + `redis`. Generated media lives in the `media-storage`
-volume shared by backend and worker.
-
-### cPanel / shared hosting
-
-A complete step-by-step guide (subdomains, static frontend upload, Node.js app
-setup, FFmpeg + yt-dlp installation without GitHub, MySQL import, and the
-`VITE_API_ORIGIN` cross-origin build) lives in [`docs/CPANEL.md`](docs/CPANEL.md).
-If your shared plan blocks binary execution or long-running processes, use the
-Docker Compose stack on a small VPS instead.
-
-### Production notes
-
-- Terminate TLS at Nginx or Cloudflare; set `CLIENT_URL`/`API_URL` to your real origin.
-- Set strong `JWT_SECRET`, `MYSQL_*`, and `ADMIN_PASSWORD` values; never commit `.env`.
-- The SQL in `database/migrations/0001_init.sql` is auto-loaded by the MySQL container on first
-  start; use `prisma migrate deploy` for subsequent schema changes.
-- Tune `MAX_CONCURRENT_JOBS_PER_IP`, rate limits, `MAX_DOWNLOAD_SIZE_MB` and disk budget for
-  your hardware; run one worker process per ~2 CPU cores.
-
-## API documentation
-
-Complete reference: [`docs/API.md`](docs/API.md).
-
-Key endpoints: `GET /api/v1/health*` · `GET /api/v1/platforms` · `POST /api/v1/media/analyze` ·
-`POST /api/v1/downloads` · `GET /api/v1/downloads/:jobId` · `GET /api/v1/downloads/:jobId/file` ·
-`DELETE /api/v1/downloads/:jobId` · `/api/v1/admin/*` (authenticated).
-
-## Security considerations
-
-- **SSRF:** user URLs are never fetched directly. A URL is handed to the engine only after the
-  provider registry claims its hostname via an allow-list; literal IPs, localhost, private
-  ranges, unusual ports and embedded credentials are rejected up front.
-- **Command injection:** yt-dlp and FFmpeg are spawned with fixed argument arrays built entirely
-  server-side; no shell is involved; user text never becomes an argument.
-- **Path traversal:** file names derive from server-generated UUIDs; download file names are
-  sanitized before use in `Content-Disposition`.
-- **DoS:** layered rate limits (global, analyze, login), per-IP concurrent job caps, file-size
-  caps, disk-space budget checks, engine timeouts, output-size guards.
-- **Secrets:** nothing sensitive reaches the client bundle or logs (logger redacts tokens and
-  credentials); admin auth uses short-lived JWTs in httpOnly same-site cookies.
-- **Admin:** every admin endpoint re-verifies authorization server-side; route guarding in the
-  UI is UX, not security.
-
-## Troubleshooting
-
-| Symptom | Cause / fix |
-| --- | --- |
-| `ENGINE_UNAVAILABLE` | yt-dlp missing or not on PATH (`YTDLP_PATH` to override) |
-| FFmpeg health `unavailable` | Install FFmpeg or set `FFMPEG_PATH` |
-| YouTube says “unavailable” | YouTube aggressively bot-checks data-center IPs; works from residential egress or with your own cookies/PO tokens via engine config |
-| Jobs stuck `queued` | Check Redis (`/api/v1/health/redis`); worker process running? |
-| Admin login loops | Clock skew (JWT), or `JWT_SECRET` changed between boots |
-| “in-memory persistence” warning | `DATABASE_URL` not set or MySQL unreachable — expected in dev |
-
-## Testing
+Alternatively, run the automated database initialization script, which creates the database, provisions all tables, and seeds initial active courses and sample leads:
 
 ```bash
-npm test                    # server: URL/SSRF validation, provider registry, datastore
-npm run test -w client      # client: formatting + URL validation utilities
+npm run init-db
 ```
 
-Verified end-to-end (real network run): TikTok URL → analyze (5 real format options) → MP4 job
-(downloaded, remuxed, served as valid ISO MP4) → MP3 job (192 kbps conversion verified) →
-cancel → record deletion. YouTube analysis works where egress is not bot-checked.
+The database schema provisions:
+* `courses`: Manages course catalog, categories, durations, and active/inactive status.
+* `leads`: Stores applicant contact information, course choice, learning mode, communication channel, referral source, status, and internal notes.
+* `lead_activities`: Maintains an immutable chronological audit trail and timeline of interactions for each applicant.
+* `admins`: Stores hashed credentials and roles for staff administrators.
+
+---
+
+## 8. How to Configure `.env`
+
+Copy `.env.example` to create your local `.env` configuration file:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your database credentials and secret key:
+
+```env
+# Server Configuration
+PORT=3000
+NODE_ENV=development
+
+# MySQL Database Configuration
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=
+DB_NAME=ict_lead_db
+
+# Security & Admin Authentication
+JWT_SECRET=super_secret_jwt_key_ict_lead_management_2026
+
+# Default Administrator Seed Account
+ADMIN_USERNAME=admin
+ADMIN_EMAIL=admin@ictacademy.org
+ADMIN_PASSWORD=AdminPassword2026!
+ADMIN_NAME=ICT System Administrator
+```
+
+---
+
+## 9. How to Create or Seed the First Admin
+
+Run the safe admin seed command to provision or reset the primary administrator account using the values from your `.env` file:
+
+```bash
+npm run seed
+```
+
+This will safely hash the administrator password using `bcrypt` and store it securely in the `admins` table.
+
+---
+
+## 10. How to Start the Server
+
+To start the production server:
+
+```bash
+npm start
+```
+
+Or for development:
+
+```bash
+npm run dev
+```
+
+On startup, the server automatically checks database connectivity, verifies that all tables exist, and begins listening on `0.0.0.0:3000`.
+
+---
+
+## 11. How to Access the Public Website
+
+Open your browser and navigate to:
+
+```text
+http://localhost:3000/
+```
+
+Features available to visitors:
+* Read course overviews and click **"Select This Course"** to auto-populate the registration form.
+* Complete the multi-channel registration form (Nigerian phone numbers like `080...` or `+234...` and international numbers supported).
+* Select referral source; selecting **"Other"** displays a dynamic input field.
+* Click **"Get Course Details"** to submit inquiries via asynchronous `fetch()`.
+* View the instant confirmation success card with direct WhatsApp advisor chat integration.
+
+---
+
+## 12. How to Access the Admin Panel
+
+Navigate to the admin portal:
+
+```text
+http://localhost:3000/admin/login
+```
+
+* **Default Username**: `admin`
+* **Default Password**: `AdminPassword2026!`
+
+After authenticating, you will be redirected to the executive dashboard:
+
+```text
+http://localhost:3000/admin/dashboard
+```
+
+### Admin Capabilities:
+1. **Executive Metrics**: Live counts of Total Leads, New Leads, Contacted, Enrolled, Today's Leads, and This Week.
+2. **Leads Directory (`/admin/leads`)**:
+   * Search across applicant names, phone numbers, and emails.
+   * Filter by course, learning mode, communication preference, referral channel, pipeline status, and date.
+   * View complete submitted lead information in a clean modal profile.
+   * One-click contact triggers: Launch **WhatsApp chat** with pre-filled greeting, initiate phone calls, or compose emails.
+   * Update lead statuses: `New` &rarr; `Contacted` &rarr; `Interested` &rarr; `Enrolled` &rarr; `Follow Up` &rarr; `Not Interested` &rarr; `Closed`.
+   * Add internal staff notes and view the chronological activity timeline for each applicant.
+   * Export all or filtered leads as RFC-compliant CSV files.
+3. **Course Management (`/admin/courses`)**:
+   * Create new ICT courses dynamically without modifying HTML.
+   * Edit course descriptions, durations, and categories.
+   * Activate or deactivate courses (inactive courses are automatically hidden from the public registration form).
+4. **Reports & Analytics (`/admin/analytics`)**:
+   * Visual breakdowns of course popularity, physical vs online learning preferences, marketing referral channels, and pipeline conversion flow.
+
+---
+
+## 13. How to Deploy the Application
+
+### Deploying on a Linux VPS (e.g. Ubuntu, Debian, AWS EC2, DigitalOcean)
+
+1. **Install Node.js & MySQL**:
+   ```bash
+   sudo apt update
+   sudo apt install -y nodejs npm mysql-server
+   ```
+2. **Clone Repository & Setup Env**:
+   ```bash
+   git clone <repo-url> /var/www/ict-leads
+   cd /var/www/ict-leads
+   npm install --production
+   cp .env.example .env
+   # Edit .env with production database credentials
+   npm run init-db
+   ```
+3. **Process Management with PM2**:
+   ```bash
+   sudo npm install -g pm2
+   pm2 start server/server.js --name "ict-leads"
+   pm2 save
+   pm2 startup
+   ```
+4. **Configure Nginx Reverse Proxy**:
+   ```nginx
+   server {
+       server_name yourdomain.com;
+
+       location / {
+           proxy_pass http://127.0.0.1:3000;
+           proxy_http_version 1.1;
+           proxy_set_header Upgrade $http_upgrade;
+           proxy_set_header Connection 'upgrade';
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto $scheme;
+           proxy_cache_bypass $http_upgrade;
+       }
+   }
+   ```
+5. **Secure with SSL**:
+   ```bash
+   sudo certbot --nginx -d yourdomain.com
+   ```
+
+---
+
+## 14. REST API Documentation
+
+### Public Endpoints
+* `POST /api/leads`: Submit a new inquiry (Rate limited to 15 requests per 15 minutes).
+* `GET /api/courses`: Retrieve active courses for public catalog and form dropdown.
+* `GET /api/health`: Health status of server and database connection.
+
+### Authentication Endpoints
+* `POST /api/admin/login`: Authenticate admin with username/email and password (Rate limited).
+* `POST /api/admin/logout`: Clear authentication cookie.
+* `GET /api/admin/me`: Check current session and retrieve admin profile.
+
+### Protected Admin Endpoints (`Bearer <token>` or HTTP cookie required)
+* `GET /api/admin/leads`: Retrieve paginated, searchable, and filtered leads.
+* `GET /api/admin/leads/stats`: Summary counts and analytics breakdowns.
+* `GET /api/admin/leads/export`: Download CSV export of all or filtered leads.
+* `GET /api/admin/leads/:id`: Fetch complete lead profile and activity history.
+* `PUT /api/admin/leads/:id`: Update lead details.
+* `PATCH /api/admin/leads/:id/status`: Update lead status and record audit log.
+* `POST /api/admin/leads/:id/notes`: Add an internal staff note and update timeline.
+* `DELETE /api/admin/leads/:id`: Permanently delete a lead.
+* `GET /api/admin/courses`: Retrieve all courses (including inactive) with inquiry counts.
+* `POST /api/admin/courses`: Create a new course.
+* `PUT /api/admin/courses/:id`: Update course attributes.
+* `PATCH /api/admin/courses/:id/status`: Toggle course between active and inactive.
+* `DELETE /api/admin/courses/:id`: Delete or deactivate course.
+
+---
+
+## 15. License
+
+This project is licensed under the MIT License.
