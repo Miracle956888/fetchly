@@ -65,7 +65,9 @@ export default function HomePage() {
     },
     onError: (err: unknown) => {
       setDownloadError(
-        err instanceof ApiClientError ? err.message : 'Could not start the download. Please try again.',
+        err instanceof ApiClientError && err.code === 'NOT_FOUND'
+          ? 'This analysis expired. Press Enter in the link field to analyze it again.'
+          : err instanceof ApiClientError ? err.message : 'Could not start the download. Please try again.',
       );
     },
     onSettled: () => setBusyFormat(null),
@@ -73,6 +75,7 @@ export default function HomePage() {
 
   // Scroll the result into view when analysis completes.
   useEffect(() => {
+    if (auto.phase === 'analyzing') setDownloadError(null);
     if (auto.phase === 'ready' || auto.phase === 'analyzing') {
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
     }
@@ -111,7 +114,11 @@ export default function HomePage() {
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-ink-soft sm:text-lg">
             Paste a link from a supported platform — Fetchly analyzes it automatically. Pick the
-            format and quality you want and download MP4 or MP3 in seconds.
+            format and quality you want and download MP4 or MP3 when it is ready.
+          </p>
+          <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-ink-soft">
+            Beta service: waking up may take a minute, and temporary files can disappear on restart.
+            Availability and file-size limits vary.
           </p>
 
           <div className="mt-8 text-left">
@@ -166,8 +173,9 @@ export default function HomePage() {
         {activeJob && (
           <div className="space-y-3 pb-10">
             <DownloadCard
+              key={activeJob.jobId}
               item={activeJob}
-              onRetry={(url) => auto.setValue(url, { immediate: true })}
+              onRetry={auto.reanalyze}
               onRemove={(jobId) => {
                 removeDownload(jobId);
                 setActiveJob(null);
@@ -208,7 +216,7 @@ export default function HomePage() {
           <SectionHeading
             kicker="Supported platforms"
             title="Works where your videos live"
-            subtitle="Platform support is managed centrally — a platform only appears as active when its connector is implemented and verified."
+            subtitle="Active platforms have an implemented connector, but availability can change or be blocked by the source."
           />
           <ul className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {(platforms.data ?? []).map((p) => {
@@ -271,9 +279,8 @@ export default function HomePage() {
                 <h3 className="text-lg font-bold">MP4 · Video</h3>
               </div>
               <p className="mt-3 text-sm leading-relaxed text-ink-soft">
-                Keeps picture and sound together. Fetchly lists every resolution the source
-                actually provides — 480p, 720p, 1080p or more — and never invents options that do
-                not exist.
+                Keeps picture and sound together. Fetchly lists up to six resolutions reported by
+                the source; the available options can change between analysis and download.
               </p>
             </Card>
             <Card className="h-full">
@@ -325,8 +332,8 @@ export default function HomePage() {
                 <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
                   Only download content you own, that is in the public domain, or that you have
                   explicit permission to save. Respect each platform&rsquo;s terms and copyright law.
-                  Fetchly does not access private, restricted or DRM-protected media — and never
-                  will.{' '}
+                  Fetchly is intended for public media and does not provide a way to bypass
+                  authentication, paywalls or DRM.{' '}
                   <a href="/responsible-use" className="font-semibold text-primary-dark underline-offset-2 hover:underline">
                     Read our responsible-use policy
                   </a>
@@ -362,15 +369,15 @@ function SectionHeading({
 const STEPS = [
   { icon: ClipboardPaste, title: 'Paste your link', text: 'Drop a video URL into the box — analysis starts automatically, no button needed.' },
   { icon: SlidersHorizontal, title: 'Choose your format', text: 'MP4 to keep the video, MP3 to keep just the audio.' },
-  { icon: Gauge, title: 'Select quality', text: 'Pick from the resolutions and bitrates the source actually offers.' },
+  { icon: Gauge, title: 'Select quality', text: 'Pick an available video resolution or an MP3 conversion bitrate.' },
   { icon: Download, title: 'Download', text: 'Real progress, real file sizes — then the file lands in your Downloads folder.' },
 ];
 
 const FEATURES = [
-  { icon: Zap, title: 'Automatic analysis', text: 'Paste a link and Fetchly detects the platform and inspects the media instantly — with smart de-bouncing and no duplicate requests.' },
-  { icon: LayoutGrid, title: 'Queue-based engine', text: 'Downloads run on a job queue with dedicated workers, so the site stays fast under load.' },
-  { icon: Timer, title: 'Automatic cleanup', text: 'Files live only long enough for you to grab them, then they are deleted for good — analytics are kept.' },
-  { icon: ShieldCheck, title: 'Privacy by design', text: 'No account needed. We do not collect personal data to process a download.' },
+  { icon: Zap, title: 'Automatic analysis', text: 'Paste a link and Fetchly detects the platform and inspects the media automatically.' },
+  { icon: LayoutGrid, title: 'Queue-based engine', text: 'Downloads run in a limited queue. You may need to wait when the service is busy.' },
+  { icon: Timer, title: 'Automatic cleanup', text: 'Files are temporary and expire after a short window, or sooner if the service restarts.' },
+  { icon: ShieldCheck, title: 'No account needed', text: 'Basic downloads do not require an account. See our privacy policy for data and logs.' },
   { icon: MonitorSmartphone, title: 'Works everywhere', text: 'Designed mobile-first and fully responsive — phones, tablets, laptops and desktops, in light or dark mode.' },
   { icon: Music2, title: 'Honest file sizes', text: 'Sizes come from the real generated file — never an estimate presented as fact.' },
 ];
@@ -382,15 +389,15 @@ const FAQS = [
   },
   {
     q: 'Which platforms are supported?',
-    a: 'YouTube, TikTok and Instagram are active today. Facebook, X, Reddit, Vimeo, Twitch, Dailymotion and Pinterest are on the roadmap and appear as "coming soon" until their connectors are verified.',
+    a: 'Fetchly has connectors for YouTube, TikTok and Instagram, but platforms may block requests or change without notice. Other listed platforms are not yet available.',
   },
   {
     q: 'Why is a quality option missing?',
-    a: 'Fetchly only lists formats the source actually provides. If a resolution is not shown, the source does not offer it.',
+    a: 'Fetchly shows up to six video resolutions reported by the source. Availability may vary by video or change before download.',
   },
   {
     q: 'Do you keep my files on your servers?',
-    a: 'Only briefly. Completed files are stored temporarily so you can download them, then automatically deleted after a short expiration window.',
+    a: 'Only temporarily. Completed files expire after a short window and may disappear sooner if the service restarts or sleeps.',
   },
   {
     q: 'Is downloading videos legal?',
@@ -398,6 +405,6 @@ const FAQS = [
   },
   {
     q: 'Can I download private or age-restricted videos?',
-    a: 'No. Fetchly only works with publicly accessible media and will never bypass authentication, DRM, paywalls or access controls.',
+    a: 'Fetchly is intended for publicly accessible media and does not provide a way to bypass authentication, DRM, paywalls or other access controls.',
   },
 ];

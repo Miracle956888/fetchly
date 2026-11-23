@@ -14,13 +14,13 @@ export const apiLimiter = rateLimit({
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   handler,
-  // Job-status polling and token-protected file delivery are excluded here —
-  // a legitimate user watching one download would otherwise exhaust the
-  // global budget with poll requests alone. Both routes get the lenient
-  // limiter below instead; they are read-only and gated by unguessable job
-  // UUIDs (status) or signed tokens (file).
+  // The cheap liveness endpoint must not be rate-limited: Render probes it
+  // every few seconds and would otherwise restart a healthy instance. The
+  // engine/FFmpeg health endpoints remain limited because they spawn processes.
+  // Job polling and token-protected delivery use their own lenient limiter.
   skip: (req) =>
-    req.method === 'GET' && /^\/downloads\/[^/]+(\/file)?$/.test(req.path),
+    req.method === 'GET' &&
+    (req.path === '/health' || /^\/downloads\/[^/]+(\/file)?$/.test(req.path)),
 });
 
 /** Lenient limiter for progress polling + file delivery. */

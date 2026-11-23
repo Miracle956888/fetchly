@@ -24,10 +24,10 @@ const COPY: Record<string, PlatformCopy> = {
     name: 'YouTube',
     title: 'YouTube downloader',
     description:
-      'Save public YouTube videos as MP4 in the highest quality the video offers, or extract the audio as MP3.',
+      'Choose an available quality for a public YouTube video, or extract the audio as MP3. Availability varies by video.',
     placeholder: 'Paste a YouTube link, e.g. https://youtube.com/watch?v=…',
     tips: [
-      'Works with regular watch links and short youtu.be links.',
+      'Try a regular watch link or short youtu.be link.',
       'Playlists are not supported — paste a single video link.',
       'Private or members-only videos cannot be downloaded.',
     ],
@@ -39,7 +39,7 @@ const COPY: Record<string, PlatformCopy> = {
     placeholder: 'Paste a TikTok link, e.g. https://tiktok.com/@user/video/…',
     tips: [
       'Use the “Copy link” option on any public TikTok.',
-      'Short vm.tiktok.com links work too.',
+      'Short vm.tiktok.com links may also work.',
       'Private accounts cannot be downloaded.',
     ],
   },
@@ -50,7 +50,7 @@ const COPY: Record<string, PlatformCopy> = {
       'Save public Instagram Reels and video posts as MP4, or extract the audio as MP3.',
     placeholder: 'Paste an Instagram link, e.g. https://instagram.com/reel/…',
     tips: [
-      'Reels, video posts and IGTV links are supported.',
+      'Try a public Reel, video post or IGTV link; availability can vary.',
       'Stories behind login walls cannot be downloaded.',
       'Only public accounts work.',
     ],
@@ -92,11 +92,16 @@ export default function PlatformPage({ slug }: { slug: string }) {
       setActiveJob(item);
     },
     onError: (err: unknown) =>
-      setDownloadError(err instanceof ApiClientError ? err.message : 'Could not start the download.'),
+      setDownloadError(
+        err instanceof ApiClientError && err.code === 'NOT_FOUND'
+          ? 'This analysis expired. Press Enter in the link field to analyze it again.'
+          : err instanceof ApiClientError ? err.message : 'Could not start the download.',
+      ),
     onSettled: () => setBusyFormat(null),
   });
 
   useEffect(() => {
+    if (auto.phase === 'analyzing') setDownloadError(null);
     if (auto.phase === 'ready' || auto.phase === 'analyzing') {
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth' }), 60);
     }
@@ -153,8 +158,9 @@ export default function PlatformPage({ slug }: { slug: string }) {
         )}
         {activeJob && (
           <DownloadCard
+            key={activeJob.jobId}
             item={activeJob}
-            onRetry={(url) => auto.setValue(url, { immediate: true })}
+            onRetry={auto.reanalyze}
             onRemove={(jobId) => {
               removeDownload(jobId);
               setActiveJob(null);

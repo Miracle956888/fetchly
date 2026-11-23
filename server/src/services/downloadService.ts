@@ -11,17 +11,19 @@ import type { DownloadJobRecord } from '../types/index.js';
 import { ApiError } from '../utils/errors.js';
 import { buildFileName } from '../utils/filename.js';
 import * as ffmpeg from './engine/ffmpeg.js';
+import { cancelledError, type CancellationFlag } from './engine/process.js';
 import { downloadStreams } from './engine/ytdlp.js';
 import {
   assertDiskBudget,
+  beginTempWork,
+  endTempWork,
   ensureDirs,
   finalPathFor,
   removeQuiet,
-  tempPathFor,
 } from './storage.js';
 
 /** In-flight cancellation flags, keyed by job id. */
-const cancellations = new Map<string, { cancelled: boolean }>();
+const cancellations = new Map<string, CancellationFlag>();
 
 let queue: JobQueue | null = null;
 export function bindQueue(q: JobQueue): void {
@@ -33,9 +35,9 @@ export function bindQueue(q: JobQueue): void {
  * is authoritative (formats can change between analysis and download) and
  * this keeps retries/restarts working even after the analysis cache expires.
  */
-async function resolvePlan(job: DownloadJobRecord): Promise<{ plan: FormatPlan; url: string }> {
+async function resolvePlan(job: DownloadJobRecord, signal: CancellationFlag): Promise<{ plan: FormatPlan; url: string }> {
   const { provider } = requireProvider(job.sourceUrl);
-  const { info, plans } = await provider.analyzeWithPlans(job.sourceUrl);
+  const { info, plans } = await provider.analyzeWithPlans(job.sourceUrl, signal);
   const option = info.formats.find((f) => f.container === job.format && f.quality === job.quality);
   if (!option) {
     throw new ApiError('CONTENT_UNAVAILABLE', 'The requested format is no longer available for this media.');
@@ -53,6 +55,7 @@ export interface CreateDownloadInput {
 }
 
 export async function createDownload(input: CreateDownloadInput): Promise<DownloadJobRecord> {
+  if (!queue) throw new ApiError('SERVER_ERROR', 'Download queue is not initialised.');
   ensureDirs();
 
   const analysis = await db().getAnalysis(input.analysisId);
@@ -99,10 +102,14 @@ export async function createDownload(input: CreateDownloadInput): Promise<Downlo
   await db().addEvent(jobId, 'job_created', `Job created for ${option.container} ${option.quality}`, {
     analysisId: analysis.id,
   });
+  try {
+    await queue.enqueue(jobId);
+  } catch (err) {
+    // Do not leave an unreachable QUEUED record when admission is rejected.
+    await db().deleteJob(jobId);
+    throw err;
+  }
   await db().track('download_created', analysis.info.platform).catch(() => undefined);
-
-  if (!queue) throw new ApiError('SERVER_ERROR', 'Download queue is not initialised.');
-  await queue.enqueue(jobId);
   logger.info({ jobId, platform: analysis.info.platform, format: option.container }, 'Download job queued');
   return job;
 }
@@ -116,14 +123,22 @@ export async function processJob(jobId: string): Promise<void> {
   const job = await db().getJob(jobId);
   if (!job || job.status !== 'QUEUED') return;
 
-  const signal = { cancelled: false };
+  const signal: CancellationFlag = { cancelled: false };
   cancellations.set(jobId, signal);
-  const temp = tempPathFor(jobId, 'in');
+  let finalPath: string | undefined;
+  let completed = false;
 
   try {
+    // A job may have waited in the queue while disk space was consumed.
+    try {
+      await assertDiskBudget();
+    } catch {
+      throw new ApiError('STORAGE_FULL', 'The server is low on storage. Please try again later.');
+    }
+    const workDir = await beginTempWork(jobId);
     // Re-verify the source first — statuses always reflect the real phase.
     await db().updateJob(jobId, { status: 'ANALYZING', progress: 1, startedAt: new Date() });
-    const { plan, url } = await resolvePlan(job);
+    const { plan, url } = await resolvePlan(job, signal);
     if (signal.cancelled) throw cancelledError();
 
     await db().updateJob(jobId, { status: 'DOWNLOADING', progress: 2 });
@@ -131,10 +146,10 @@ export async function processJob(jobId: string): Promise<void> {
 
     // Throttled telemetry writes (progress %, bytes, speed) — ~1/s max.
     let lastTelemetryWrite = 0;
-    await downloadStreams(
+    const tempFile = await downloadStreams(
       url,
       plan.selector ?? 'best',
-      temp,
+      path.join(workDir, 'source.%(ext)s'),
       (p) => {
         const now = Date.now();
         if (now - lastTelemetryWrite < 700 && p.percent < 100) return;
@@ -156,46 +171,18 @@ export async function processJob(jobId: string): Promise<void> {
     await db().updateJob(jobId, { status: 'PROCESSING', progress: 85, speedBps: null });
     await db().addEvent(jobId, 'processing_started', plan.kind === 'audio' ? 'Converting audio' : 'Preparing video container');
 
-    // yt-dlp may append the real media extension to the -o template on some
-    // platforms/versions (e.g. "<id>.in.mp4"). Locate whatever it wrote.
-    let tempFile = temp;
-    try {
-      await fs.stat(tempFile);
-    } catch {
-      const dir = path.dirname(temp);
-      const base = path.basename(temp);
-      const entries = await fs.readdir(dir).catch(() => [] as string[]);
-      const match = entries.find((n) => n.startsWith(`${base}.`)) ?? entries.find((n) => n === base);
-      if (!match) {
-        throw new ApiError('DOWNLOAD_FAILED', 'The source did not produce a downloadable file.');
-      }
-      tempFile = path.join(dir, match);
+    finalPath = finalPathFor(jobId, plan.container);
+    if (plan.kind === 'audio') {
+      await ffmpeg.toMp3(tempFile, finalPath, plan.bitrate ?? 192, signal);
+    } else {
+      // Remux (stream copy) into MP4 — no re-encoding unless required.
+      await ffmpeg.remux(tempFile, finalPath, signal);
     }
-
-    const tempStat = await fs.stat(tempFile).catch(() => {
-      throw new ApiError('DOWNLOAD_FAILED', 'The downloaded file could not be read from storage.');
-    });
-    if (tempStat.size > maxBytes) {
-      throw new ApiError('DOWNLOAD_FAILED', `The media exceeds the ${env.MAX_DOWNLOAD_SIZE_MB} MB size limit.`);
-    }
-
-    const finalPath = finalPathFor(jobId, plan.container);
-    try {
-      if (plan.kind === 'audio') {
-        await ffmpeg.toMp3(tempFile, finalPath, plan.bitrate ?? 192);
-      } else {
-        // Remux (stream copy) into MP4 — no re-encoding unless required.
-        await ffmpeg.remux(tempFile, finalPath);
-      }
-    } catch (err) {
-      if (err instanceof ApiError) throw err;
-      throw new ApiError('FFMPEG_FAILED', 'Media processing failed on this server.');
-    } finally {
-      await removeQuiet(tempFile);
-    }
+    if (signal.cancelled) throw cancelledError();
 
     // Authoritative size: read from the filesystem, never estimated.
     const finalStat = await fs.stat(finalPath);
+    if (finalStat.size === 0) throw new ApiError('FFMPEG_FAILED', 'Media processing produced an empty file.');
     if (finalStat.size > maxBytes) {
       await removeQuiet(finalPath);
       throw new ApiError('DOWNLOAD_FAILED', `The media exceeds the ${env.MAX_DOWNLOAD_SIZE_MB} MB size limit.`);
@@ -213,27 +200,31 @@ export async function processJob(jobId: string): Promise<void> {
       completedAt: new Date(),
       expiresAt: new Date(Date.now() + env.DOWNLOAD_EXPIRATION_MINUTES * 60_000),
     });
+    completed = true;
     await db().addEvent(jobId, 'file_ready', `File ready (${finalStat.size} bytes)`, {
       bytes: finalStat.size,
       fileName,
-    });
+    }).catch(() => undefined);
     await db().track('download_completed', job.platform).catch(() => undefined);
     logger.info({ jobId, bytes: finalStat.size }, 'Download completed');
   } catch (err) {
     const api = err instanceof ApiError ? err : new ApiError('DOWNLOAD_FAILED', 'The download failed unexpectedly.');
     const wasCancelled = signal.cancelled || api.message === 'Cancelled.';
-    await db().updateJob(
-      jobId,
-      wasCancelled
-        ? { status: 'CANCELLED', errorMessage: 'Cancelled by user.' }
-        : {
-            status: 'FAILED',
-            errorCode: api.code,
-            errorMessage: api.message,
-            completedAt: new Date(),
-          },
-    );
-    await db().addEvent(jobId, wasCancelled ? 'cancelled' : 'failed', api.message);
+    // The user may have removed the record while the subprocess was running.
+    if (await db().getJob(jobId)) {
+      await db().updateJob(
+        jobId,
+        wasCancelled
+          ? { status: 'CANCELLED', errorMessage: 'Cancelled by user.' }
+          : {
+              status: 'FAILED',
+              errorCode: api.code,
+              errorMessage: api.message,
+              completedAt: new Date(),
+            },
+      );
+      await db().addEvent(jobId, wasCancelled ? 'cancelled' : 'failed', api.message);
+    }
     if (!wasCancelled) {
       logger.error(
         {
@@ -248,13 +239,10 @@ export async function processJob(jobId: string): Promise<void> {
       );
     }
   } finally {
+    if (!completed && finalPath) await removeQuiet(finalPath);
+    await endTempWork(jobId);
     cancellations.delete(jobId);
-    await removeQuiet(temp);
   }
-}
-
-function cancelledError(): ApiError {
-  return new ApiError('DOWNLOAD_FAILED', 'Cancelled.');
 }
 
 export async function cancelJob(jobId: string): Promise<DownloadJobRecord> {
@@ -278,6 +266,10 @@ export async function retryJob(jobId: string): Promise<DownloadJobRecord> {
   if (!['FAILED', 'CANCELLED', 'EXPIRED'].includes(job.status)) {
     throw ApiError.badRequest('Only failed, cancelled or expired jobs can be retried.');
   }
+  if (cancellations.has(jobId)) {
+    throw new ApiError('JOB_LIMIT_REACHED', 'The previous attempt is still stopping. Please retry shortly.');
+  }
+  if (!queue) throw new ApiError('SERVER_ERROR', 'Download queue is not initialised.');
   if (job.filePath) await removeQuiet(job.filePath);
   await db().updateJob(jobId, {
     status: 'QUEUED',
@@ -290,9 +282,20 @@ export async function retryJob(jobId: string): Promise<DownloadJobRecord> {
     completedAt: null,
     expiresAt: new Date(Date.now() + env.DOWNLOAD_EXPIRATION_MINUTES * 60_000),
   });
+  try {
+    await queue.enqueue(jobId);
+  } catch (err) {
+    await db().updateJob(jobId, {
+      status: job.status,
+      progress: job.progress,
+      errorCode: job.errorCode,
+      errorMessage: job.errorMessage,
+      startedAt: job.startedAt,
+      completedAt: job.completedAt,
+    });
+    throw err;
+  }
   await db().addEvent(jobId, 'retry', 'Job requeued');
-  if (!queue) throw new ApiError('SERVER_ERROR', 'Download queue is not initialised.');
-  await queue.enqueue(jobId);
   return (await db().getJob(jobId))!;
 }
 

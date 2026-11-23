@@ -1,7 +1,11 @@
 import { spawn } from 'node:child_process';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { env } from '../../config/env.js';
 import { logger } from '../../config/logger.js';
 import { ApiError } from '../../utils/errors.js';
+import { assertWorkSize } from '../storage.js';
+import { runGuarded, type CancellationFlag } from './process.js';
 
 /**
  * Thin, safe wrapper around the yt-dlp extraction engine.
@@ -14,6 +18,12 @@ import { ApiError } from '../../utils/errors.js';
  */
 
 const binary = (): string => env.YTDLP_PATH || 'yt-dlp';
+
+// Extractor errors can contain media/CDN URLs with signed query parameters.
+// Preserve diagnostics, but do not put those URLs into public-host logs.
+function safeStderr(stderr: string): string {
+  return stderr.replace(/https?:\/\/[^\s"'<>]+/gi, '[url]').slice(-2000);
+}
 
 export interface YtDlpFormat {
   format_id: string;
@@ -41,73 +51,68 @@ export interface YtDlpInfo {
   formats?: YtDlpFormat[];
 }
 
-function run(args: string[], timeoutMs: number): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(binary(), args, { stdio: ['ignore', 'pipe', 'pipe'] });
-    let stdout = '';
-    let stderr = '';
-    const timer = setTimeout(() => {
-      child.kill('SIGKILL');
-      reject(new ApiError('TIMEOUT', 'The media engine took too long to respond.'));
-    }, timeoutMs);
-
-    child.stdout.on('data', (d) => {
-      stdout += d;
-      if (stdout.length > 25 * 1024 * 1024) {
-        clearTimeout(timer);
-        child.kill('SIGKILL');
-        reject(new ApiError('SERVER_ERROR', 'Engine output exceeded limits.'));
-      }
-    });
-    child.stderr.on('data', (d) => (stderr += d));
-    child.on('error', (err) => {
-      clearTimeout(timer);
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-        reject(new ApiError('ENGINE_UNAVAILABLE', 'The media engine is not installed on this server.'));
-      } else {
-        reject(new ApiError('SERVER_ERROR', 'Media engine error.'));
-      }
-    });
-    child.on('close', (code) => {
-      clearTimeout(timer);
-      if (code === 0) return resolve(stdout);
-      logger.error({ code, stderr: stderr.slice(0, 2000) }, 'yt-dlp exited non-zero');
-      reject(classifyYtDlpFailure(stderr));
-    });
+async function run(args: string[], timeoutMs: number, signal?: CancellationFlag): Promise<string> {
+  const result = await runGuarded(binary(), args, {
+    timeoutMs,
+    timeoutMessage: 'The media engine took too long to respond.',
+    unavailableMessage: 'The media engine is not installed on this server.',
+    startErrorMessage: 'Media engine error.',
+    signal,
   });
+  if (result.code === 0) return result.stdout;
+  logger.error({ code: result.code, stderr: safeStderr(result.stderr) }, 'yt-dlp exited non-zero');
+  throw classifyYtDlpFailure(result.stderr);
 }
 
 /** Map engine stderr to user-safe, domain-specific errors. */
 function classifyYtDlpFailure(stderr: string): ApiError {
   const s = stderr.toLowerCase();
-  if (s.includes('private video') || s.includes('sign in') || s.includes('login')) {
+  if (/\bprivate (?:video|content|media)\b|\b(?:video|content|media|account) (?:is|was) private\b/.test(s)) {
     return new ApiError('PRIVATE_CONTENT', 'This media is private or requires an account. Only public content can be downloaded.');
+  }
+  // A public YouTube video can trigger "sign in to confirm you're not a bot"
+  // on cloud hosts. This is a source challenge, not proof the video is private.
+  if (/\b(?:not a bot|captcha|recaptcha)\b/.test(s)) {
+    return new ApiError(
+      'SOURCE_UNAVAILABLE',
+      'The source requested bot verification for this server. The media may still be public; please try again later.',
+    );
+  }
+  if (/\brate[ -]?limit|too many requests|\bhttp(?: error)?[: ]+429\b/.test(s)) {
+    return new ApiError('SOURCE_UNAVAILABLE', 'The source platform is rate limiting requests. Please try again later.');
+  }
+  // Avoid matching "age" inside unrelated words such as "webpage" and "message".
+  if (/\bdrm\b|\bage[ -](?:restricted|restriction|verification|gated)\b|\b(?:confirm|verify) (?:your )?age\b/.test(s)) {
+    return new ApiError('CONTENT_UNAVAILABLE', 'This media is restricted and cannot be downloaded.');
+  }
+  if (/\b(?:login_required|sign[ -]?in|log[ -]?in)\b/.test(s)) {
+    return new ApiError(
+      'SOURCE_UNAVAILABLE',
+      'The source asked this server to sign in. The media may be restricted, or the platform may be blocking a public link.',
+    );
   }
   if (s.includes('not found') || s.includes('does not exist') || s.includes('unavailable') || s.includes('removed')) {
     return new ApiError('CONTENT_UNAVAILABLE', 'The media could not be found. It may have been removed by its owner.');
   }
-  if (s.includes('drm') || s.includes('age')) {
-    return new ApiError('CONTENT_UNAVAILABLE', 'This media is restricted and cannot be downloaded.');
-  }
-  if (s.includes('rate limit') || s.includes('too many requests') || s.includes('429')) {
-    return new ApiError('SOURCE_UNAVAILABLE', 'The source platform is rate limiting requests. Please try again later.');
-  }
   if (s.includes('unable to extract')) {
     return new ApiError(
       'SOURCE_UNAVAILABLE',
-      'The platform blocked extraction. Update the media engine (run "yt-dlp -U" on the server) and try again.',
+      'The media engine could not extract this content. The source may have changed or blocked this server; please try again later.',
     );
   }
   if (s.includes('unexpected response') || s.includes('please report this issue')) {
     return new ApiError(
       'SOURCE_UNAVAILABLE',
-      'The platform changed its response format and the media engine needs an update. Run "yt-dlp -U" on the server, or try again later.',
+      'The source returned an unexpected response to the media engine. Please try again later.',
     );
   }
-  if (s.includes('network') || s.includes('getaddrinfo') || s.includes('connection')) {
-    return new ApiError('SOURCE_UNAVAILABLE', 'Could not reach the source platform. Check connectivity and try again.');
+  if (
+    s.includes('network') || s.includes('getaddrinfo') || s.includes('connection') ||
+    s.includes('unable to download webpage') || /\bhttp(?: error)?[: ]+(?:403|5\d\d)\b/.test(s)
+  ) {
+    return new ApiError('SOURCE_UNAVAILABLE', 'Could not reach the source platform, or the request was blocked. Please try again later.');
   }
-  return new ApiError('DOWNLOAD_FAILED', 'The media could not be analyzed.');
+  return new ApiError('DOWNLOAD_FAILED', 'The media could not be processed.');
 }
 
 export async function checkAvailable(): Promise<{ available: boolean; version: string | null }> {
@@ -133,18 +138,20 @@ export async function checkAvailable(): Promise<{ available: boolean; version: s
 const COMMON_ARGS = [
   '--no-warnings',
   '--no-playlist',
-  '--no-check-certificates',
   '--socket-timeout',
   '20',
   '--retries',
   '2',
+  ...(env.YTDLP_JS_RUNTIME ? ['--js-runtimes', env.YTDLP_JS_RUNTIME] : []),
 ];
 
 /** Metadata-only analysis. */
-export async function probeUrl(url: string): Promise<YtDlpInfo> {
+export async function probeUrl(url: string, signal?: CancellationFlag): Promise<YtDlpInfo> {
   const out = await run(
     ['--dump-single-json', '--skip-download', ...COMMON_ARGS, url],
-  60_000);
+    60_000,
+    signal,
+  );
   try {
     return JSON.parse(out) as YtDlpInfo;
   } catch {
@@ -180,80 +187,100 @@ function parseSize(spec: string | undefined): number | undefined {
 }
 
 /**
- * Download the selected streams for a format option to `outPath`.
- * `selector` is a yt-dlp format expression built ONLY from format ids we
- * received from our own probe — never from user text.
+ * Download into a private work directory. Only a path reported by yt-dlp's
+ * after_move hook is accepted; leftover video/audio fragments are not output.
  */
-export function downloadStreams(
+export async function downloadStreams(
   url: string,
   selector: string,
-  outPath: string,
+  outTemplate: string,
   onProgress: (p: StreamDownloadProgress) => void,
-  signal: { cancelled: boolean },
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const args = [
-      '-f',
-      selector,
-      '--newline',
-      '--no-part',
-      '--merge-output-format',
-      'mp4',
-      ...COMMON_ARGS,
-      '-o',
-      outPath,
-      url,
-    ];
-    if (env.FFMPEG_PATH) args.push('--ffmpeg-location', env.FFMPEG_PATH);
-    const child = spawn(binary(), args, { stdio: ['ignore', 'pipe', 'pipe'] });
-    let stderr = '';
+  signal: CancellationFlag,
+): Promise<string> {
+  const maxBytes = env.MAX_DOWNLOAD_SIZE_MB * 1024 * 1024;
+  const workDir = path.dirname(outTemplate);
+  const marker = 'FETCHLY_OUTPUT:';
+  const args = [
+    '-f', selector,
+    '--newline',
+    '--progress',
+    '--no-simulate',
+    '--no-part',
+    '--merge-output-format', 'mp4',
+    // This is a helpful early rejection for known stream sizes; the directory
+    // monitor and final size check also cover unknown sizes and multistreams.
+    '--max-filesize', String(maxBytes),
+    '--print', `after_move:${marker}%(filepath)s`,
+    // --print implies --quiet; undo it so size-skip messages are observable.
+    '--no-quiet',
+    ...COMMON_ARGS,
+    ...(env.FFMPEG_PATH ? ['--ffmpeg-location', env.FFMPEG_PATH] : []),
+    '-o', outTemplate,
+    url,
+  ];
 
-    const timer = setInterval(() => {
-      if (signal.cancelled) {
-        child.kill('SIGKILL');
-      }
-    }, 1000);
-
-    // Buffer across chunks — progress lines may be split mid-line.
-    let lineBuffer = '';
-    const handleLine = (line: string): void => {
-      // e.g. "[download]  68.2% of ~ 84.20MiB at  2.41MiB/s ETA 00:07"
-      const m = line.match(/\[download\]\s+(?<p>\d{1,3}(?:\.\d+)?)%/);
-      if (!m?.groups?.p) return;
-      const progress: StreamDownloadProgress = {
-        percent: Math.min(100, Math.round(parseFloat(m.groups.p))),
-      };
-      const sizeMatch = line.match(/of\s+~?\s*([\d.]+\s*[KMGT]?i?B)/i);
-      if (sizeMatch) progress.totalBytes = parseSize(sizeMatch[1]);
-      const speedMatch = line.match(/at\s+([\d.]+\s*[KMGT]?i?B)\/s/i);
-      if (speedMatch) progress.speedBps = parseSize(speedMatch[1]);
-      // Derive downloaded bytes from percent × total (engine rarely prints the
-      // absolute count); both numbers come from the engine, not estimates.
-      if (progress.totalBytes !== undefined) {
-        progress.downloadedBytes = Math.round((progress.percent / 100) * progress.totalBytes);
-      }
-      onProgress(progress);
+  let outputPath: string | undefined;
+  let skippedForSize = false;
+  let lineBuffer = '';
+  const handleLine = (line: string): void => {
+    if (line.startsWith(marker)) {
+      outputPath = line.slice(marker.length).trim();
+      return;
+    }
+    if (/larger than (?:max-filesize|the maximum|maximum)/i.test(line)) skippedForSize = true;
+    // e.g. "[download]  68.2% of ~ 84.20MiB at  2.41MiB/s ETA 00:07"
+    const m = line.match(/\[download\]\s+(?<p>\d{1,3}(?:\.\d+)?)%/);
+    if (!m?.groups?.p) return;
+    const progress: StreamDownloadProgress = {
+      percent: Math.min(100, Math.round(parseFloat(m.groups.p))),
     };
-    child.stdout.on('data', (chunk: Buffer) => {
-      lineBuffer += chunk.toString();
-      const lines = lineBuffer.split('\n');
-      lineBuffer = lines.pop() ?? '';
+    const sizeMatch = line.match(/of\s+~?\s*([\d.]+\s*[KMGT]?i?B)/i);
+    if (sizeMatch) progress.totalBytes = parseSize(sizeMatch[1]);
+    const speedMatch = line.match(/at\s+([\d.]+\s*[KMGT]?i?B)\/s/i);
+    if (speedMatch) progress.speedBps = parseSize(speedMatch[1]);
+    if (progress.totalBytes !== undefined) {
+      progress.downloadedBytes = Math.round((progress.percent / 100) * progress.totalBytes);
+    }
+    onProgress(progress);
+  };
+
+  const result = await runGuarded(binary(), args, {
+    timeoutMs: env.DOWNLOAD_TIMEOUT_SECONDS * 1000,
+    timeoutMessage: 'The download took too long and was stopped.',
+    unavailableMessage: 'The media engine is not installed on this server.',
+    startErrorMessage: 'Download failed to start.',
+    signal,
+    checkLimit: () => assertWorkSize(workDir, maxBytes),
+    captureStdout: false,
+    onStdout: (chunk) => {
+      lineBuffer += chunk;
+      const lines = lineBuffer.split(/\r?\n/);
+      lineBuffer = (lines.pop() ?? '').slice(-64 * 1024);
       for (const line of lines) handleLine(line);
-    });
-    child.stderr.on('data', (d) => (stderr += d));
-    child.on('error', (err) => {
-      clearInterval(timer);
-      reject(
-        (err as NodeJS.ErrnoException).code === 'ENOENT'
-          ? new ApiError('ENGINE_UNAVAILABLE', 'The media engine is not installed on this server.')
-          : new ApiError('DOWNLOAD_FAILED', 'Download failed to start.'),
-      );
-    });
-    child.on('close', (code) => {
-      clearInterval(timer);
-      if (signal.cancelled) return reject(new ApiError('DOWNLOAD_FAILED', 'Cancelled.'));
-      if (code === 0) return resolve();
-      reject(classifyYtDlpFailure(stderr));
-    });
+    },
   });
+  if (lineBuffer) handleLine(lineBuffer);
+  if (skippedForSize) {
+    throw new ApiError('DOWNLOAD_FAILED', `The media exceeds the ${env.MAX_DOWNLOAD_SIZE_MB} MB size limit.`);
+  }
+  if (result.code !== 0) {
+    logger.warn({ code: result.code, stderr: safeStderr(result.stderr) }, 'yt-dlp download failed');
+    throw classifyYtDlpFailure(result.stderr);
+  }
+  if (!outputPath) {
+    throw new ApiError('DOWNLOAD_FAILED', 'The source did not produce a complete downloadable file.');
+  }
+
+  const resolved = path.resolve(outputPath);
+  if (path.dirname(resolved) !== path.resolve(workDir)) {
+    throw new ApiError('DOWNLOAD_FAILED', 'The downloaded file had an invalid location.');
+  }
+  const stat = await fs.lstat(resolved).catch(() => null);
+  if (!stat?.isFile() || stat.size === 0) {
+    throw new ApiError('DOWNLOAD_FAILED', 'The downloaded file could not be read from storage.');
+  }
+  if (stat.size > maxBytes) {
+    throw new ApiError('DOWNLOAD_FAILED', `The media exceeds the ${env.MAX_DOWNLOAD_SIZE_MB} MB size limit.`);
+  }
+  return resolved;
 }

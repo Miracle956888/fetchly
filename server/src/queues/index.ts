@@ -1,5 +1,6 @@
 import { env } from '../config/env.js';
 import { logger } from '../config/logger.js';
+import { ApiError } from '../utils/errors.js';
 
 /**
  * Job queue boundary. Production uses BullMQ + Redis; when REDIS_URL is not
@@ -12,7 +13,6 @@ export interface JobQueue {
   shutdown(): Promise<void>;
 }
 
-const CONCURRENCY = 2;
 const QUEUE_NAME = 'downloads';
 
 async function createBullQueue(handler: (jobId: string) => Promise<void>): Promise<JobQueue> {
@@ -24,7 +24,7 @@ async function createBullQueue(handler: (jobId: string) => Promise<void>): Promi
     async (job) => {
       await handler(job.id ?? '');
     },
-    { connection, concurrency: CONCURRENCY },
+    { connection, concurrency: env.JOB_CONCURRENCY },
   );
   worker.on('failed', (job, err) => {
     logger.error({ jobId: job?.id, err }, 'Queue job crashed');
@@ -48,7 +48,7 @@ function createLocalQueue(handler: (jobId: string) => Promise<void>): JobQueue {
   let stopped = false;
 
   const pump = async (): Promise<void> => {
-    while (!stopped && running < CONCURRENCY && pending.length > 0) {
+    while (!stopped && running < env.JOB_CONCURRENCY && pending.length > 0) {
       const jobId = pending.shift()!;
       running += 1;
       handler(jobId)
@@ -64,7 +64,10 @@ function createLocalQueue(handler: (jobId: string) => Promise<void>): JobQueue {
   return {
     kind: 'local',
     async enqueue(jobId) {
-      if (stopped) return;
+      if (stopped) throw new ApiError('SERVER_ERROR', 'The download queue is stopping.');
+      if (pending.length >= env.MAX_PENDING_JOBS) {
+        throw new ApiError('JOB_LIMIT_REACHED', 'The download queue is full. Please try again shortly.');
+      }
       pending.push(jobId);
       setImmediate(pump);
     },

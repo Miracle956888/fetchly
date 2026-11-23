@@ -40,9 +40,10 @@ export const status = asyncH(async (req: Request, res: Response) => {
   const job = await db().getJob(req.params.jobId);
   if (!job) throw ApiError.notFound('Download job not found.');
 
-  // Delivery URL is only issued for finished, unexpired files.
+  // Reflect expiry immediately, even before the periodic cleanup pass runs.
+  const expired = job.status === 'COMPLETED' && !!job.expiresAt && job.expiresAt.getTime() <= Date.now();
   let downloadUrl: string | null = null;
-  if (job.status === 'COMPLETED' && job.filePath && (!job.expiresAt || job.expiresAt.getTime() > Date.now())) {
+  if (job.status === 'COMPLETED' && job.filePath && !expired) {
     const { token } = signDeliveryToken(job.id);
     downloadUrl = `/api/v1/downloads/${job.id}/file?token=${token}`;
   }
@@ -51,7 +52,7 @@ export const status = asyncH(async (req: Request, res: Response) => {
     success: true,
     data: {
       id: job.id,
-      status: job.status.toLowerCase(),
+      status: (expired ? 'EXPIRED' : job.status).toLowerCase(),
       progress: job.progress,
       platform: job.platform,
       title: job.title,
