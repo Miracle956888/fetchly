@@ -4,8 +4,8 @@ import type { TrackedDownload } from '../types';
 
 /**
  * Session download manager. Tracks jobs the user started in this browser so
- * they survive navigation and reloads (localStorage). Nothing personal is
- * stored server-side for anonymous users.
+ * they survive navigation and reloads (localStorage). Server-side job records
+ * can disappear independently when an ephemeral beta instance restarts.
  */
 interface DownloadsContextValue {
   downloads: TrackedDownload[];

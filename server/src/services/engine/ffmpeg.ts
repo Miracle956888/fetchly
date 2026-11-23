@@ -1,6 +1,8 @@
 import { spawn } from 'node:child_process';
 import { env } from '../../config/env.js';
 import { ApiError } from '../../utils/errors.js';
+import { assertOutputSize } from '../storage.js';
+import { runGuarded, type CancellationFlag } from './process.js';
 
 /**
  * FFmpeg processing layer. All argument vectors are built from fixed,
@@ -10,46 +12,30 @@ import { ApiError } from '../../utils/errors.js';
 
 const binary = (): string => env.FFMPEG_PATH || 'ffmpeg';
 
-function run(args: string[], timeoutMs: number): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(binary(), args, { stdio: ['ignore', 'ignore', 'pipe'] });
-    let stderr = '';
-    const timer = setTimeout(() => {
-      child.kill('SIGKILL');
-      reject(new ApiError('TIMEOUT', 'Media processing timed out.'));
-    }, timeoutMs);
-
-    child.stderr.on('data', (d) => {
-      stderr += d;
-      if (stderr.length > 2 * 1024 * 1024) stderr = stderr.slice(-256 * 1024);
-    });
-    child.on('error', (err) => {
-      clearTimeout(timer);
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-        reject(new ApiError('ENGINE_UNAVAILABLE', 'FFmpeg is not installed on this server.'));
-      } else {
-        reject(new ApiError('FFMPEG_FAILED', 'Media processing failed to start.'));
-      }
-    });
-    child.on('close', (code) => {
-      clearTimeout(timer);
-      if (code === 0) return resolve();
-      reject(new ApiError('FFMPEG_FAILED', 'Media processing failed.'));
-    });
+async function run(args: string[], output: string, signal: CancellationFlag): Promise<void> {
+  const result = await runGuarded(binary(), args, {
+    timeoutMs: env.PROCESS_TIMEOUT_SECONDS * 1000,
+    timeoutMessage: 'Media processing timed out.',
+    unavailableMessage: 'FFmpeg is not installed on this server.',
+    startErrorMessage: 'Media processing failed to start.',
+    signal,
+    checkLimit: () => assertOutputSize(output, env.MAX_DOWNLOAD_SIZE_MB * 1024 * 1024),
+    captureStdout: false,
   });
+  if (result.code !== 0) throw new ApiError('FFMPEG_FAILED', 'Media processing failed.');
 }
 
 /** Remux without re-encoding (cheap). Use when codecs are already compatible. */
-export function remux(input: string, output: string): Promise<void> {
-  return run(['-hide_banner', '-loglevel', 'error', '-y', '-i', input, '-c', 'copy', output], 10 * 60_000);
+export function remux(input: string, output: string, signal: CancellationFlag): Promise<void> {
+  return run(['-hide_banner', '-nostdin', '-loglevel', 'error', '-y', '-i', input, '-c', 'copy', output], output, signal);
 }
 
 /** Extract + encode audio to MP3 at the given bitrate. */
-export function toMp3(input: string, output: string, bitrateKbps: number): Promise<void> {
+export function toMp3(input: string, output: string, bitrateKbps: number, signal: CancellationFlag): Promise<void> {
   const kbps = [128, 192, 320].includes(bitrateKbps) ? bitrateKbps : 192;
   return run(
     [
-      '-hide_banner', '-loglevel', 'error', '-y',
+      '-hide_banner', '-nostdin', '-loglevel', 'error', '-y',
       '-i', input,
       '-vn',
       '-c:a', 'libmp3lame',
@@ -57,7 +43,8 @@ export function toMp3(input: string, output: string, bitrateKbps: number): Promi
       '-map_metadata', '0',
       output,
     ],
-    30 * 60_000,
+    output,
+    signal,
   );
 }
 

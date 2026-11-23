@@ -1,8 +1,9 @@
 # Fetchly — Multi-Platform Media Downloader
 
-Fetchly is a production-ready web application for downloading **publicly accessible** media from
-supported platforms. Paste a link → analyze → choose format & quality → download MP4 or MP3 with
-real progress, a job queue, FFmpeg processing, automatic cleanup, and a full admin dashboard.
+Fetchly is a web application for downloading **publicly accessible** media from supported
+platforms. Paste a link → analyze → choose format & quality → download MP4 or MP3 with real
+progress, a job queue, FFmpeg processing, automatic cleanup, and an admin dashboard. The free
+Render configuration is intended for a **limited beta**, not a reliable production service.
 
 The UI is an original design built around a **white + `#00C9A7`** identity. It takes *functional*
 inspiration from simple downloader tools (paste → inspect → pick → download) and queue-based
@@ -53,18 +54,18 @@ download managers, but shares no layout, branding, or assets with any existing p
 - Admin dashboard: live stats, charts, job management, platform toggles, users, analytics,
   system health, event logs, settings
 - Automatic file expiration + cleanup workers (no media kept permanently)
-- Security: Helmet, CORS allow-list, layered rate limiting, Zod validation, SSRF-safe URL intake,
-  JWT admin auth in httpOnly cookies, no shell execution anywhere
+- Security: Helmet, CORS allow-list, layered rate limiting, Zod validation, initial-host URL
+  checks, JWT admin auth in httpOnly cookies, no shell execution
 - Structured JSON logging with secret redaction and request ids
 - Fully responsive, mobile-first UI · accessible (keyboard, ARIA, reduced motion)
-- SEO pages, Open Graph/Twitter metadata, robots.txt, sitemap.xml, JSON-LD
+- SEO landing pages, Open Graph/Twitter metadata, robots.txt and JSON-LD
 
 ## Technology stack
 
 | Layer | Technology |
 | --- | --- |
 | Frontend | React 18, Vite 6, TypeScript, Tailwind CSS 4, React Router 6, TanStack Query 5, Lucide icons |
-| Backend | Node.js 20, Express 4, TypeScript (ESM), Zod, Helmet, CORS, express-rate-limit, pino |
+| Backend | Node.js 22 in Docker, Express 4, TypeScript (ESM), Zod, Helmet, CORS, express-rate-limit, pino |
 | Queue | BullMQ + Redis (in-process dev fallback) |
 | Media engine | yt-dlp (extraction/download) + FFmpeg (remux/convert) |
 | Database | MySQL 8 + Prisma ORM |
@@ -81,7 +82,7 @@ fetchly/
 │   ├── src/contexts/           # session download manager
 │   ├── src/hooks/              # usePlatforms, useJobPolling
 │   ├── src/lib/api.ts          # typed API client (relative URLs, proxied)
-│   └── public/                 # robots.txt, sitemap.xml, favicon
+│   └── public/                 # robots.txt, theme initializer, favicon
 ├── server/                     # Express API + workers
 │   ├── prisma/schema.prisma    # MySQL schema + seed script
 │   └── src/
@@ -101,31 +102,36 @@ fetchly/
 
 ## Installation
 
-Requirements: Node ≥ 20, npm. For the full pipeline: FFmpeg, yt-dlp, MySQL 8, Redis 7.
+Requirements: Node ≥ 20 and npm (Node ≥ 22 is recommended for yt-dlp's YouTube JavaScript
+solver). For the full pipeline: FFmpeg and yt-dlp; MySQL 8 and Redis 7 are optional.
 
 ```bash
-npm install
-cp .env.example .env           # then edit values (JWT_SECRET, ADMIN_PASSWORD!)
+npm ci
+cp .env.example .env           # development defaults only; replace secrets for any deployment
 ```
 
 Install media engines:
 
 ```bash
 sudo apt-get install -y ffmpeg
-pip3 install yt-dlp            # or: pipx install yt-dlp
+pip3 install 'yt-dlp[default]' # or install the same extra with pipx
 ```
+
+For YouTube, install Node 22+ and set `YTDLP_JS_RUNTIME=node` in `.env`. The `default` extra
+includes the matching `yt-dlp-ejs` challenge scripts. Platform blocking and extractor changes can
+still prevent downloads; see the [yt-dlp EJS guide](https://github.com/yt-dlp/yt-dlp/wiki/EJS).
 
 ### Database setup (optional in dev)
 
 - **With MySQL:** set `DATABASE_URL` in `.env`, then
   `npm run db:generate && npm run db:migrate && npm run db:seed`.
 - **Without:** leave `DATABASE_URL` empty. The API boots with an in-memory persistence adapter
-  (logged loudly). Data does not survive restarts — fine for local development only.
+  (logged loudly). Data does not survive restarts; use it only for development or a disposable beta.
 
 ### Redis setup (optional in dev)
 
 - **With Redis:** set `REDIS_URL` → BullMQ queue + standalone worker.
-- **Without:** leave empty → built-in in-process queue (dev only).
+- **Without:** leave empty → built-in in-process queue, which is lost on restart.
 
 ## Development commands
 
@@ -139,18 +145,33 @@ npm run lint         # both workspaces
 npm run build        # server tsc + client production build
 ```
 
+Optional offline browser smoke test (Linux/macOS): install Chromium, FFmpeg and yt-dlp, run
+`npm run build`, then `CHROMIUM_PATH=/path/to/chromium npm run smoke:beta`. If the executables
+are not on `PATH`, set `FFMPEG_PATH` and `YTDLP_PATH`. This exercises the real browser and media
+engines with synthetic metadata and a local fixture; it does **not** test a live platform or Docker.
+
 Open http://localhost:5173 — the dev server proxies `/api` to the backend.
 
 Admin dashboard: http://localhost:5173/admin/login
 Default credentials come from `.env` (`ADMIN_EMAIL` / `ADMIN_PASSWORD`). The admin account is
 seeded automatically on first boot; change both values before any real deployment.
 
+## Render free beta
+
+The simplest $0 starting point is one Render Free Docker web service serving the website and API
+from the same HTTPS origin. See **[docs/RENDER.md](docs/RENDER.md)** for the dashboard steps,
+post-deploy checks, security caveats and important free-tier limits. Render can only deploy a
+branch that has been committed and pushed to GitHub.
+
 ## Docker deployment
 
+The existing Compose stack is a separate, more involved setup; it was not validated as part of the
+Render beta work. Before trying it, configure strong credentials in `.env` and review the SQL
+migrations and persistent-storage requirements.
+
 ```bash
-cp .env.example .env           # configure secrets first
+cp .env.example .env           # configure strong secrets first
 docker compose up -d --build
-docker compose exec backend npx prisma migrate deploy   # apply schema (or use the bundled SQL)
 ```
 
 Services: `nginx` (edge) → `frontend` (static build) + `backend` (API) + `worker`
@@ -169,8 +190,8 @@ Docker Compose stack on a small VPS instead.
 
 - Terminate TLS at Nginx or Cloudflare; set `CLIENT_URL`/`API_URL` to your real origin.
 - Set strong `JWT_SECRET`, `MYSQL_*`, and `ADMIN_PASSWORD` values; never commit `.env`.
-- The SQL in `database/migrations/0001_init.sql` is auto-loaded by the MySQL container on first
-  start; use `prisma migrate deploy` for subsequent schema changes.
+- The SQL in `database/migrations/` is loaded by the MySQL container only on first initialization.
+  Plan and test an explicit migration process for subsequent schema changes.
 - Tune `MAX_CONCURRENT_JOBS_PER_IP`, rate limits, `MAX_DOWNLOAD_SIZE_MB` and disk budget for
   your hardware; run one worker process per ~2 CPU cores.
 
@@ -184,17 +205,19 @@ Key endpoints: `GET /api/v1/health*` · `GET /api/v1/platforms` · `POST /api/v1
 
 ## Security considerations
 
-- **SSRF:** user URLs are never fetched directly. A URL is handed to the engine only after the
-  provider registry claims its hostname via an allow-list; literal IPs, localhost, private
-  ranges, unusual ports and embedded credentials are rejected up front.
+- **SSRF:** initial URLs are checked against provider hosts and reject literal IPs, localhost,
+  private ranges, unusual ports and embedded credentials. These checks do not fully isolate
+  extractor-initiated requests or redirects; use network-level egress controls before trusting
+  this with sensitive internal services or broader public traffic.
 - **Command injection:** yt-dlp and FFmpeg are spawned with fixed argument arrays built entirely
   server-side; no shell is involved; user text never becomes an argument.
 - **Path traversal:** file names derive from server-generated UUIDs; download file names are
   sanitized before use in `Content-Disposition`.
-- **DoS:** layered rate limits (global, analyze, login), per-IP concurrent job caps, file-size
-  caps, disk-space budget checks, engine timeouts, output-size guards.
-- **Secrets:** nothing sensitive reaches the client bundle or logs (logger redacts tokens and
-  credentials); admin auth uses short-lived JWTs in httpOnly same-site cookies.
+- **DoS:** layered rate limits, per-IP job caps, bounded local queue/analysis concurrency,
+  sampled file-size checks, disk-space checks and subprocess timeouts. These are best-effort
+  safeguards, not a hard bandwidth quota or a replacement for production abuse protection.
+- **Secrets:** avoid committing `.env`; HTTP request logs omit headers and query strings, and
+  admin auth uses short-lived JWTs in httpOnly same-site cookies.
 - **Admin:** every admin endpoint re-verifies authorization server-side; route guarding in the
   UI is UX, not security.
 
@@ -204,10 +227,10 @@ Key endpoints: `GET /api/v1/health*` · `GET /api/v1/platforms` · `POST /api/v1
 | --- | --- |
 | `ENGINE_UNAVAILABLE` | yt-dlp missing or not on PATH (`YTDLP_PATH` to override) |
 | FFmpeg health `unavailable` | Install FFmpeg or set `FFMPEG_PATH` |
-| YouTube says “unavailable” | YouTube aggressively bot-checks data-center IPs; works from residential egress or with your own cookies/PO tokens via engine config |
+| YouTube says “unavailable” | Cloud IPs may be blocked, or yt-dlp/EJS may need updating; some media remains inaccessible |
 | Jobs stuck `queued` | Check Redis (`/api/v1/health/redis`); worker process running? |
 | Admin login loops | Clock skew (JWT), or `JWT_SECRET` changed between boots |
-| “in-memory persistence” warning | `DATABASE_URL` not set or MySQL unreachable — expected in dev |
+| “in-memory persistence” warning | `DATABASE_URL` not set or MySQL unreachable — expected for the disposable Render beta |
 
 ## Testing
 
@@ -216,6 +239,6 @@ npm test                    # server: URL/SSRF validation, provider registry, da
 npm run test -w client      # client: formatting + URL validation utilities
 ```
 
-Verified end-to-end (real network run): TikTok URL → analyze (5 real format options) → MP4 job
-(downloaded, remuxed, served as valid ISO MP4) → MP3 job (192 kbps conversion verified) →
-cancel → record deletion. YouTube analysis works where egress is not bot-checked.
+The server suite covers same-origin routing, admin cookies, signed downloads, queue limits,
+process cancellation, size checks and cleanup. After deploying, test MP4 and MP3 with media you
+have permission to save: a passing health endpoint does not prove a platform is reachable.

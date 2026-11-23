@@ -1,4 +1,5 @@
 import type { MediaInfo, MediaKind } from '../types/index.js';
+import type { CancellationFlag } from '../services/engine/process.js';
 
 /**
  * Server-side execution plan for one format option. Never sent to clients —
@@ -31,5 +32,5 @@ export interface MediaProvider {
   /** Analyze the URL and return available media information + formats. */
   analyze(url: string): Promise<MediaInfo>;
   /** Same as analyze, but also returns the server-side execution plans. */
-  analyzeWithPlans(url: string): Promise<{ info: MediaInfo; plans: Record<string, FormatPlan> }>;
+  analyzeWithPlans(url: string, signal?: CancellationFlag): Promise<{ info: MediaInfo; plans: Record<string, FormatPlan> }>;
 }

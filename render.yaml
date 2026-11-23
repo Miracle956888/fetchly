@@ -1,33 +1,38 @@
-# Render blueprint — free-tier hosting for the Fetchly API.
-# Docs: https://render.com/docs/blueprint-spec
-#
-# Usage: push this repo to GitHub, then in Render choose
-# "New +" → "Blueprint" → select the repo. Render builds the Docker image
-# (which bundles FFmpeg + yt-dlp) and runs the API on a free web service.
-#
-# After it deploys, set the real CLIENT_URL (your Netlify site URL) in the
-# service's Environment tab and redeploy.
-
+# Limited free-tier beta: one Docker web service serves both UI and API.
+# Deploy from a branch containing this file via New > Blueprint on Render.
+# See docs/RENDER.md for setup, limits, and post-deploy checks.
 services:
   - type: web
-    name: fetchly-api
+    name: fetchly
     runtime: docker
-    dockerfilePath: server/Dockerfile
+    dockerfilePath: ./server/Dockerfile
     dockerContext: .
     plan: free
     healthCheckPath: /api/v1/health
     envVars:
       - key: NODE_ENV
         value: production
-      # Replace with your frontend URL after deploying the site (Netlify).
-      - key: CLIENT_URL
-        value: https://fetchly-site.netlify.app
       - key: JWT_SECRET
         generateValue: true
       - key: ADMIN_EMAIL
         value: admin@fetchly.local
       - key: ADMIN_PASSWORD
         generateValue: true
-      # No DATABASE_URL / REDIS_URL on purpose: the free tier uses the
-      # built-in memory datastore + in-process queue. Add a free-tier
-      # MySQL/Redis later if you want persistence.
+      # Keep the free instance's CPU, memory and ephemeral storage usage modest.
+      - key: JOB_CONCURRENCY
+        value: "1"
+      - key: MAX_PENDING_JOBS
+        value: "10"
+      - key: MAX_CONCURRENT_ANALYSES
+        value: "1"
+      - key: MAX_CONCURRENT_JOBS_PER_IP
+        value: "2"
+      - key: MAX_DOWNLOAD_SIZE_MB
+        value: "100"
+      - key: DOWNLOAD_TIMEOUT_SECONDS
+        value: "300"
+      - key: PROCESS_TIMEOUT_SECONDS
+        value: "300"
+      - key: MIN_FREE_DISK_MB
+        value: "256"
+      # No DATABASE_URL or REDIS_URL: data and queued jobs are ephemeral.

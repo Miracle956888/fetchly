@@ -8,7 +8,7 @@ interface Section {
 const DOCS: Record<string, { title: string; updated: string; sections: Section[] }> = {
   'responsible-use': {
     title: 'Responsible Use Policy',
-    updated: 'Last updated: August 2026',
+    updated: 'Last updated: November 2026',
     sections: [
       {
         heading: 'Your responsibility',
@@ -19,9 +19,9 @@ const DOCS: Record<string, { title: string; updated: string; sections: Section[]
       {
         heading: 'What Fetchly will not do',
         body: [
-          'Fetchly does not access private, password-protected, members-only, age-restricted or DRM-protected content.',
-          'Fetchly does not bypass authentication, paywalls, regional locks or any other access control.',
-          'Fetchly does not support downloading content in ways that violate a platform’s terms of service.',
+          'Fetchly is intended for publicly accessible media. Private, password-protected, members-only, age-restricted or DRM-protected content may not be available.',
+          'Fetchly is not intended to bypass authentication, paywalls, regional locks or any other access control.',
+          'Do not use Fetchly in ways that violate a platform’s terms of service.',
         ],
       },
       {
@@ -40,7 +40,7 @@ const DOCS: Record<string, { title: string; updated: string; sections: Section[]
   },
   terms: {
     title: 'Terms of Service',
-    updated: 'Last updated: August 2026',
+    updated: 'Last updated: November 2026',
     sections: [
       {
         heading: 'Acceptance',
@@ -68,13 +68,14 @@ const DOCS: Record<string, { title: string; updated: string; sections: Section[]
   },
   privacy: {
     title: 'Privacy Policy',
-    updated: 'Last updated: August 2026',
+    updated: 'Last updated: November 2026',
     sections: [
       {
         heading: 'What we collect',
         body: [
           'Fetchly is designed to collect as little as possible. Basic downloads do not require an account.',
-          'We process the URLs you submit in order to analyze and download media. Technical data such as anonymized request metadata may be kept briefly for rate limiting and abuse prevention.',
+          'We process the URLs you submit to analyze and download media. IP addresses and request information may be processed for rate limiting. Server and hosting-provider logs may contain request metadata and error details; the hosting provider controls its log retention.',
+          'Media thumbnails may load from third-party platforms or their CDNs. Your browser stores your theme and download history locally, and admin sign-in uses an HTTP-only cookie.',
         ],
       },
       {
@@ -86,34 +87,34 @@ const DOCS: Record<string, { title: string; updated: string; sections: Section[]
       {
         heading: 'Retention',
         body: [
-          'Generated files are deleted automatically after a short expiration window. Job records are kept only as long as needed to operate and secure the service.',
+          'Generated files are deleted after a short expiration window or when the beta instance restarts. Job records and analytics are held in memory until they are deleted or the instance restarts; hosting-provider logs may be retained separately.',
         ],
       },
       {
         heading: 'Contact',
-        body: ['For privacy questions, contact the address listed on the DMCA page.'],
+        body: ['A privacy contact has not yet been configured for this beta.'],
       },
     ],
   },
   dmca: {
     title: 'DMCA Policy',
-    updated: 'Last updated: August 2026',
+    updated: 'Last updated: November 2026',
     sections: [
       {
         heading: 'We respect intellectual property',
         body: [
-          'Fetchly does not host media. Files are generated temporarily at a user’s request from third-party sources and deleted automatically. Users are responsible for ensuring they have the right to download any content.',
+          'Fetchly generates temporary files at a user’s request from third-party sources and deletes them automatically. Users are responsible for ensuring they have the right to download any content.',
         ],
       },
       {
         heading: 'Takedown requests',
         body: [
-          'If you believe Fetchly is being used to infringe your copyright, send a notice identifying the work, the URL involved, and your contact details to the designated agent listed below. We will review and act on valid notices promptly.',
+          'If you believe Fetchly is being used to infringe your copyright, a notice should identify the work, the URL involved, and your contact details.',
         ],
       },
       {
-        heading: 'Designated agent',
-        body: ['dmca@fetchly.example.com'],
+        heading: 'Contact',
+        body: ['A copyright contact has not yet been configured for this beta.'],
       },
     ],
   },

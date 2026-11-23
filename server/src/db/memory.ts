@@ -275,6 +275,9 @@ export class MemoryDatastore implements Datastore {
 
   async saveAnalysis(record: AnalysisRecord): Promise<void> {
     this.analyses.set(record.id, record);
+    // Match the Prisma adapter's one-hour analysis cache; free-tier processes
+    // otherwise retain every analyzed format list until the instance sleeps.
+    setTimeout(() => this.analyses.delete(record.id), 60 * 60_000).unref?.();
   }
 
   async getAnalysis(id: string): Promise<AnalysisRecord | null> {

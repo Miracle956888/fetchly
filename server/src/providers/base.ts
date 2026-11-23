@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { CancellationFlag } from '../services/engine/process.js';
 import { probeUrl, type YtDlpFormat, type YtDlpInfo } from '../services/engine/ytdlp.js';
 import type { MediaInfo, FormatOption } from '../types/index.js';
 import type { FormatPlan, MediaProvider } from './types.js';
@@ -17,8 +18,8 @@ export abstract class YtDlpProvider implements MediaProvider {
     return (await this.analyzeWithPlans(url)).info;
   }
 
-  async analyzeWithPlans(url: string): Promise<{ info: MediaInfo; plans: Record<string, FormatPlan> }> {
-    const raw = await probeUrl(url);
+  async analyzeWithPlans(url: string, signal?: CancellationFlag): Promise<{ info: MediaInfo; plans: Record<string, FormatPlan> }> {
+    const raw = await probeUrl(url, signal);
     return this.mapInfo(raw, url);
   }
 

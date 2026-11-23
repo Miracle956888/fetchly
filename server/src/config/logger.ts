@@ -3,12 +3,10 @@ import pino from 'pino';
 import { env } from './env.js';
 
 /**
- * Structured JSON logger with file output.
- *  - console (stdout)            : level from LOG_LEVEL
- *  - <LOG_DIR>/server.log        : everything (full audit trail)
- *  - <LOG_DIR>/error.log         : warnings + errors only (what to check first)
- * Sensitive fields are redacted — passwords, tokens and authorization
- * headers must never reach logs or log files.
+ * Structured JSON logging. Production defaults to stdout so an ephemeral
+ * Render instance doesn't accumulate unbounded local log files. Development
+ * writes server.log/error.log as well; explicitly setting LOG_DIR opts in to
+ * those files in production. Sensitive fields are redacted.
  */
 
 const logDir = process.env.LOG_DIR
@@ -23,6 +21,8 @@ export const logger = pino({
       'req.headers.authorization',
       'req.headers.cookie',
       'req.headers["set-cookie"]',
+      'res.headers["set-cookie"]',
+      'req.query.token',
       '*.password',
       '*.passwordHash',
       '*.token',
@@ -35,18 +35,20 @@ export const logger = pino({
     targets: [
       // Console, as before
       { target: 'pino/file', level: env.LOG_LEVEL, options: { destination: 1 } },
-      // Full log file
-      {
-        target: 'pino/file',
-        level: 'trace',
-        options: { destination: path.join(logDir, 'server.log'), mkdir: true },
-      },
-      // Errors & warnings only
-      {
-        target: 'pino/file',
-        level: 'warn',
-        options: { destination: path.join(logDir, 'error.log'), mkdir: true },
-      },
+      ...(env.NODE_ENV !== 'production' || process.env.LOG_DIR
+        ? [
+            {
+              target: 'pino/file',
+              level: 'trace',
+              options: { destination: path.join(logDir, 'server.log'), mkdir: true },
+            },
+            {
+              target: 'pino/file',
+              level: 'warn',
+              options: { destination: path.join(logDir, 'error.log'), mkdir: true },
+            },
+          ]
+        : []),
     ],
   },
 });

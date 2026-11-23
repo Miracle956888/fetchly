@@ -36,7 +36,7 @@ export const login = asyncH(async (req: Request, res: Response) => {
   const token = signAdminToken({ sub: user.id, email: user.email, role: user.role });
   res.cookie(ADMIN_COOKIE, token, COOKIE_OPTS);
   await db().track('admin_login').catch(() => undefined);
-  res.json({ success: true, data: { email: user.email, name: user.name, token } });
+  res.json({ success: true, data: { email: user.email, name: user.name } });
 });
 
 export const logout = asyncH(async (_req: Request, res: Response) => {

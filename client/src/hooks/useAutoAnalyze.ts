@@ -95,11 +95,19 @@ export function useAutoAnalyze() {
     [run],
   );
 
-  /** Enter key: analyze now (also the accessible fallback for the flow). */
+  /** Force a fresh analysis after a job expires or a server restart. */
+  const reanalyze = useCallback((url: string) => {
+    const key = normalizeMediaUrl(url);
+    if (key) cacheRef.current.delete(key);
+    // setValue cancels any pending debounce before launching the new request.
+    setValue(url, { immediate: true });
+  }, [setValue]);
+
+  /** Enter is an explicit re-analysis, including when cached results are stale. */
   const submitNow = useCallback(() => {
     const trimmed = value.trim();
-    if (looksLikeUrl(trimmed)) run(trimmed);
-  }, [value, run]);
+    if (looksLikeUrl(trimmed)) reanalyze(trimmed);
+  }, [value, reanalyze]);
 
   const reset = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -122,6 +130,7 @@ export function useAutoAnalyze() {
     value,
     setValue,
     submitNow,
+    reanalyze,
     reset,
     phase,
     analysis,

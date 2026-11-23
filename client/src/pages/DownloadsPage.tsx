@@ -72,7 +72,7 @@ export default function DownloadsPage() {
       <header>
         <h1 className="text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">Your downloads</h1>
         <p className="mt-1.5 text-sm text-ink-soft">
-          History for this browser. Files expire automatically, so grab them while they last.
+          History for this browser. Files expire automatically and may disappear sooner if the service restarts.
         </p>
       </header>
 

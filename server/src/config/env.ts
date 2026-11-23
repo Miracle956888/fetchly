@@ -21,8 +21,10 @@ const EnvSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3000),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
 
-  CLIENT_URL: z.string().url().default('http://localhost:5173'),
+  CLIENT_URL: z.string().url().default(process.env.RENDER_EXTERNAL_URL || 'http://localhost:5173'),
   API_URL: z.string().url().default('http://localhost:3000'),
+  // When set, serve the built client and API from the same origin.
+  CLIENT_DIST_DIR: z.string().min(1).optional(),
 
   DATABASE_URL: z.string().optional(),
   REDIS_URL: z.string().optional(),
@@ -38,6 +40,11 @@ const EnvSchema = z.object({
   TEMP_FILE_RETENTION_MINUTES: z.coerce.number().int().positive().default(60),
   MAX_DOWNLOAD_SIZE_MB: z.coerce.number().int().positive().default(2048),
   MAX_CONCURRENT_JOBS_PER_IP: z.coerce.number().int().positive().default(3),
+  JOB_CONCURRENCY: z.coerce.number().int().positive().default(2),
+  MAX_PENDING_JOBS: z.coerce.number().int().positive().default(50),
+  MAX_CONCURRENT_ANALYSES: z.coerce.number().int().positive().default(4),
+  DOWNLOAD_TIMEOUT_SECONDS: z.coerce.number().int().positive().default(600),
+  PROCESS_TIMEOUT_SECONDS: z.coerce.number().int().positive().default(600),
   MIN_FREE_DISK_MB: z.coerce.number().int().nonnegative().default(1024),
 
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900_000),
@@ -47,6 +54,15 @@ const EnvSchema = z.object({
 
   FFMPEG_PATH: z.string().optional(),
   YTDLP_PATH: z.string().optional(),
+  YTDLP_JS_RUNTIME: z.enum(['node', 'deno', 'quickjs']).optional(),
+}).superRefine((config, ctx) => {
+  if (config.NODE_ENV !== 'production') return;
+  if (config.JWT_SECRET === 'dev-only-insecure-secret-change-me') {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['JWT_SECRET'], message: 'Set a strong production secret.' });
+  }
+  if (config.ADMIN_PASSWORD === 'change-me-strong-password' || config.ADMIN_PASSWORD.length < 16) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['ADMIN_PASSWORD'], message: 'Set a unique password of at least 16 characters.' });
+  }
 });
 
 const parsed = EnvSchema.safeParse(process.env);

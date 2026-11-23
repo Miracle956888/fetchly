@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { useJobPolling } from '../hooks/useJobPolling';
-import { api } from '../lib/api';
+import { api, ApiClientError } from '../lib/api';
 import type { JobStatus, TrackedDownload } from '../types';
 import { formatFileSize } from '../utils/format';
 import { PlatformIcon } from './PlatformIcon';
@@ -54,8 +54,10 @@ function statusLabel(status: JobStatus, progress: number, delivering: boolean): 
  * final size) come from the server — nothing is simulated on the client.
  */
 export function DownloadCard({ item, onRetry, onRemove, showThumbnail = false }: DownloadCardProps) {
-  const { data: job, isError, refetch } = useJobPolling(item.jobId);
+  const { data: job, error, isError, refetch } = useJobPolling(item.jobId);
   const [delivering, setDelivering] = useState(false);
+  const [refreshingLink, setRefreshingLink] = useState(false);
+  const [deliveryError, setDeliveryError] = useState<string | null>(null);
   const [deliveryNote, setDeliveryNote] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
 
@@ -68,9 +70,9 @@ export function DownloadCard({ item, onRetry, onRemove, showThumbnail = false }:
     onRemove(item.jobId);
   };
 
-  // The job record was deleted (e.g. expired cleanup or admin removal) —
-  // fail gracefully instead of rendering stale data.
+  // Distinguish a vanished job from a temporary network/server error.
   if (isError) {
+    const missing = error instanceof ApiClientError && error.status === 404;
     return (
       <Card className="!p-4 sm:!p-5">
         <div className="flex flex-wrap items-center gap-3.5">
@@ -82,13 +84,18 @@ export function DownloadCard({ item, onRetry, onRemove, showThumbnail = false }:
               {item.title}
             </p>
             <p className="mt-0.5 text-xs text-ink-soft">
-              This job record no longer exists on the server.
+              {missing ? 'This job record no longer exists on the server.' : 'Could not check this job right now.'}
             </p>
           </div>
           <div className="flex gap-2">
-            {onRetry && (
+            {missing && onRetry && (
               <Button size="sm" variant="secondary" onClick={() => onRetry(item.sourceUrl)} icon={<RefreshCw className="size-4" aria-hidden="true" />}>
                 Download Again
+              </Button>
+            )}
+            {!missing && (
+              <Button size="sm" variant="secondary" onClick={() => void refetch()} icon={<RefreshCw className="size-4" aria-hidden="true" />}>
+                Retry status
               </Button>
             )}
             <Button size="sm" variant="ghost" onClick={handleRemove} icon={<Trash2 className="size-4" aria-hidden="true" />}>
@@ -103,25 +110,36 @@ export function DownloadCard({ item, onRetry, onRemove, showThumbnail = false }:
   const status = job?.status ?? 'queued';
   const active = ['queued', 'analyzing', 'downloading', 'processing'].includes(status);
 
-  /** Trigger the real device download through the signed delivery URL. */
+  /** Get a fresh signed URL before every device download: the cached one expires. */
   const downloadToDevice = async () => {
-    let url = job?.downloadUrl ?? null;
-    if (!url) {
-      // Token may have expired — ask the server for a fresh one.
+    setDeliveryError(null);
+    setRefreshingLink(true);
+    try {
       const fresh = await refetch();
-      url = fresh.data?.downloadUrl ?? null;
+      if (fresh.isError) {
+        setDeliveryError('Could not refresh the download link. Please try again.');
+        return;
+      }
+      const url = fresh.data?.downloadUrl;
+      if (!url) {
+        setDeliveryError('This file is no longer available. Please try downloading it again.');
+        return;
+      }
+      setDelivering(true);
+      // Honest client event; the server keeps its own authoritative record.
+      void api.reportDownloadEvent(item.jobId, 'download_started');
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fresh.data?.fileName ?? '';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => setDeliveryNote(true), 400);
+    } catch {
+      setDeliveryError('Could not refresh the download link. Please try again.');
+    } finally {
+      setRefreshingLink(false);
     }
-    if (!url) return;
-    setDelivering(true);
-    // Honest client event; the server keeps its own authoritative record.
-    void api.reportDownloadEvent(item.jobId, 'download_started');
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = job?.fileName ?? '';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => setDeliveryNote(true), 400);
   };
 
   const handleCancel = async () => {
@@ -228,6 +246,7 @@ export function DownloadCard({ item, onRetry, onRemove, showThumbnail = false }:
                   <Button
                     size="sm"
                     onClick={downloadToDevice}
+                    loading={refreshingLink}
                     icon={<Download className="size-4" aria-hidden="true" />}
                   >
                     {deliveryNote ? 'Download Again' : 'Download to device'}
@@ -236,9 +255,10 @@ export function DownloadCard({ item, onRetry, onRemove, showThumbnail = false }:
                     Remove
                   </Button>
                 </div>
+                {deliveryError && <p role="alert" className="text-xs text-danger">{deliveryError}</p>}
                 {deliveryNote && (
                   <p className="text-xs text-ink-soft">
-                    Files expire after a short window — use Download Again to regenerate if needed.
+                    Files expire after a short window and may disappear sooner if the service restarts.
                   </p>
                 )}
               </div>
