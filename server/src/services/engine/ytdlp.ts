@@ -67,32 +67,50 @@ async function run(args: string[], timeoutMs: number, signal?: CancellationFlag)
 /** Map engine stderr to user-safe, domain-specific errors. */
 function classifyYtDlpFailure(stderr: string): ApiError {
   const s = stderr.toLowerCase();
-  if (s.includes('private video') || s.includes('sign in') || s.includes('login')) {
+  if (/\bprivate (?:video|content|media)\b|\b(?:video|content|media|account) (?:is|was) private\b/.test(s)) {
     return new ApiError('PRIVATE_CONTENT', 'This media is private or requires an account. Only public content can be downloaded.');
+  }
+  // A public YouTube video can trigger "sign in to confirm you're not a bot"
+  // on cloud hosts. This is a source challenge, not proof the video is private.
+  if (/\b(?:not a bot|captcha|recaptcha)\b/.test(s)) {
+    return new ApiError(
+      'SOURCE_UNAVAILABLE',
+      'The source requested bot verification for this server. The media may still be public; please try again later.',
+    );
+  }
+  if (/\brate[ -]?limit|too many requests|\bhttp(?: error)?[: ]+429\b/.test(s)) {
+    return new ApiError('SOURCE_UNAVAILABLE', 'The source platform is rate limiting requests. Please try again later.');
+  }
+  // Avoid matching "age" inside unrelated words such as "webpage" and "message".
+  if (/\bdrm\b|\bage[ -](?:restricted|restriction|verification|gated)\b|\b(?:confirm|verify) (?:your )?age\b/.test(s)) {
+    return new ApiError('CONTENT_UNAVAILABLE', 'This media is restricted and cannot be downloaded.');
+  }
+  if (/\b(?:login_required|sign[ -]?in|log[ -]?in)\b/.test(s)) {
+    return new ApiError(
+      'SOURCE_UNAVAILABLE',
+      'The source asked this server to sign in. The media may be restricted, or the platform may be blocking a public link.',
+    );
   }
   if (s.includes('not found') || s.includes('does not exist') || s.includes('unavailable') || s.includes('removed')) {
     return new ApiError('CONTENT_UNAVAILABLE', 'The media could not be found. It may have been removed by its owner.');
   }
-  if (s.includes('drm') || s.includes('age')) {
-    return new ApiError('CONTENT_UNAVAILABLE', 'This media is restricted and cannot be downloaded.');
-  }
-  if (s.includes('rate limit') || s.includes('too many requests') || s.includes('429')) {
-    return new ApiError('SOURCE_UNAVAILABLE', 'The source platform is rate limiting requests. Please try again later.');
-  }
   if (s.includes('unable to extract')) {
     return new ApiError(
       'SOURCE_UNAVAILABLE',
-      'The platform blocked extraction. Update the media engine (run "yt-dlp -U" on the server) and try again.',
+      'The media engine could not extract this content. The source may have changed or blocked this server; please try again later.',
     );
   }
   if (s.includes('unexpected response') || s.includes('please report this issue')) {
     return new ApiError(
       'SOURCE_UNAVAILABLE',
-      'The platform changed its response format and the media engine needs an update. Run "yt-dlp -U" on the server, or try again later.',
+      'The source returned an unexpected response to the media engine. Please try again later.',
     );
   }
-  if (s.includes('network') || s.includes('getaddrinfo') || s.includes('connection')) {
-    return new ApiError('SOURCE_UNAVAILABLE', 'Could not reach the source platform. Check connectivity and try again.');
+  if (
+    s.includes('network') || s.includes('getaddrinfo') || s.includes('connection') ||
+    s.includes('unable to download webpage') || /\bhttp(?: error)?[: ]+(?:403|5\d\d)\b/.test(s)
+  ) {
+    return new ApiError('SOURCE_UNAVAILABLE', 'Could not reach the source platform, or the request was blocked. Please try again later.');
   }
   return new ApiError('DOWNLOAD_FAILED', 'The media could not be processed.');
 }

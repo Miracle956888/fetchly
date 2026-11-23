@@ -121,9 +121,12 @@ a sitemap for that domain. Render may serve a disallow-all `robots.txt` while a 
   Editing the values restarts the in-memory beta and invalidates current jobs/sessions.
 - **Engine/FFmpeg health is unavailable:** check the Docker build logs. A successful health check
   still cannot guarantee that a platform or a particular video is downloadable.
-- **Source unavailable, bot check, timeout, or incomplete download:** retry a small permitted public
-  file, update the yt-dlp/EJS pin if needed, and inspect logs without sharing secrets. Some sources
-  block data-center IPs; this setup does not bypass those restrictions.
+- **Source unavailable, sign-in request, bot check, timeout, or incomplete download:** retry a small
+  permitted public file and inspect `yt-dlp exited non-zero` or `yt-dlp download failed` in the Render
+  logs. A public video can still trigger a source sign-in or bot challenge from a cloud IP; the app
+  cannot clear that challenge. Update the pinned yt-dlp/EJS versions when appropriate, but do not
+  assume an update will resolve a platform block. Remove private URLs and secrets before sharing
+  diagnostic logs; never share passwords or browser cookies.
 - **Storage full or queue full:** wait for work to finish or files to expire, use smaller media,
   and inspect the service's resource metrics. The `MIN_FREE_DISK_MB` threshold is a safeguard, not
   a guarantee of available disk space.

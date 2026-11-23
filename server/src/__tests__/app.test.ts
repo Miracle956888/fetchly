@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import type { Server } from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
@@ -56,6 +56,28 @@ describe('same-origin web service', () => {
       expect((await fetch(`${origin}/api/v1/health`)).status).toBe(200);
     }
     expect((await fetch(`${origin}/api/v1/platforms`)).status).toBe(200);
+  });
+
+  it.runIf(process.platform !== 'win32')('reports a source bot challenge without calling the video private', async () => {
+    const fakeEngine = path.join(root, 'fake-engine');
+    await writeFile(fakeEngine, `#!/usr/bin/env node\nconsole.error("ERROR: Sign in to confirm you're not a bot."); process.exit(1);\n`);
+    await chmod(fakeEngine, 0o755);
+    const originalEngine = env.YTDLP_PATH;
+    env.YTDLP_PATH = fakeEngine;
+    try {
+      const response = await fetch(`${origin}/api/v1/media/analyze`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ url: 'https://www.youtube.com/watch?v=abcdefghijk' }),
+      });
+      expect(response.status).toBe(502);
+      expect(await response.json()).toMatchObject({
+        success: false,
+        error: { code: 'SOURCE_UNAVAILABLE', message: expect.stringMatching(/bot verification/i) },
+      });
+    } finally {
+      env.YTDLP_PATH = originalEngine;
+    }
   });
 
   it('logs in and uses the same-origin HTTP-only admin cookie', async () => {
