@@ -32,20 +32,27 @@ static drag-and-drop upload of `client/dist` is still frontend-only and will not
    such as Deploy Previews. Do not put secrets in `netlify.toml`, GitHub, screenshots or chat.
    The server refuses to start with the development defaults. Redeploy after changing a value.
 4. Keep the Netlify project's **base directory at the repository root**, and use the build
-   command and publish directory from `netlify.toml`. Remove old UI-specified overrides if they
-   prevent this configuration being used. Do not set `NODE_ENV=production` for the **build**:
-   it can cause Netlify to omit TypeScript/Vite dev dependencies. The server sets production mode
-   itself at runtime. Do not set `DATABASE_URL`, `REDIS_URL`, `CLIENT_DIST_DIR`, `YTDLP_PATH`,
-   `FFMPEG_PATH`, `DOWNLOAD_DIR` or `TEMP_DIR` for this Netlify beta unless you have reviewed
-   the code and understand the impact. This configuration expects local ephemeral state and
-   `/tmp` storage, not an external worker. The Netlify build forces the frontend to use the same
-   origin; no `VITE_API_ORIGIN` or external API rewrite is needed.
-5. Deploy that branch and check the Netlify deploy and Server logs. `netlify.toml` selects Node
-   24 and the small, single-instance server. The build bundles Linux x86-64 media executables
-   and a copy of the frontend for deep-link fallback. Do **not** add a `/* → /index.html`
-   rewrite: Netlify applies rewrites before the server, so it would intercept API requests.
-   If the deployment fails, keep the prior production deploy and inspect the error rather than
-   assuming the beta is live. A large bundle or unsupported runtime can still prevent deployment.
+   command and publish directory from `netlify.toml`. The **package directory** can be blank
+   (the root) or `client`: both include an entry for the same server. If it is set to another
+   directory, change it in **Project configuration → Developer settings → Continuous deployment
+   → Build settings**; the package directory is a UI setting, not a `netlify.toml` setting.
+   Remove old UI-specified overrides if they prevent this configuration being used. Do not set
+   `NODE_ENV=production` for the **build**: it can cause Netlify to omit TypeScript/Vite dev
+   dependencies. The server sets production mode itself at runtime. Do not set `DATABASE_URL`,
+   `REDIS_URL`, `CLIENT_DIST_DIR`, `YTDLP_PATH`, `FFMPEG_PATH`, `DOWNLOAD_DIR` or `TEMP_DIR` for
+   this Netlify beta unless you have reviewed the code and understand the impact. This
+   configuration expects local ephemeral state and `/tmp` storage, not an external worker. The
+   Netlify build forces the frontend to use the same origin; no `VITE_API_ORIGIN` or external
+   API rewrite is needed.
+5. Deploy that branch and check the Netlify deploy and Server logs. A successful static build
+   alone does not prove the backend was deployed: check that the log says **Netlify Server
+   detected** and that `/api/v1/health` returns JSON. If it is missing, confirm the package
+   directory and the team's Server Early Access eligibility. `netlify.toml` selects Node 24 and
+   the small, single-instance server. The build bundles Linux x86-64 media executables and a copy
+   of the frontend for deep-link fallback. Do **not** add a `/* → /index.html` rewrite: Netlify
+   applies rewrites before the server, so it would intercept API requests. If the deployment
+   fails, keep the prior production deploy and inspect the error rather than assuming the beta
+   is live. A large bundle or unsupported runtime can still prevent deployment.
 
 ## Test the actual Netlify deploy
 
