@@ -4,7 +4,7 @@ FROM node:22-bookworm-slim AS base
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ffmpeg python3 python3-pip ca-certificates openssl \
-    && python3 -m pip install --no-cache-dir --break-system-packages 'yt-dlp[default]==2026.10.26' \
+    && python3 -m pip install --no-cache-dir --break-system-packages 'yt-dlp[default]==2026.11.23' \
     && rm -rf /var/lib/apt/lists/*
 
 FROM base AS build
