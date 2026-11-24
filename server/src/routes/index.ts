@@ -20,6 +20,9 @@ export function createApiRouter(): Router {
   // ── Public ────────────────────────────────────────────────────────────
   router.get('/platforms', platforms.list);
   router.post('/media/analyze', analyzeLimiter, media.analyze);
+  router.post('/media/analysis', analyzeLimiter, media.startAnalysis);
+  router.get('/media/analysis/:taskId', pollingLimiter, media.analysisStatus);
+  router.delete('/media/analysis/:taskId', media.cancelAnalysis);
   router.post('/downloads', downloads.create);
   router.get('/downloads/:jobId', pollingLimiter, downloads.status);
   router.get('/downloads/:jobId/file', pollingLimiter, downloads.file);

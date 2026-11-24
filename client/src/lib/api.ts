@@ -60,6 +60,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       res.status,
     );
   }
+  // A static-host SPA fallback can return HTML with HTTP 200 for an API URL.
+  // Treat that as an error rather than leaving the UI loading indefinitely.
+  if (!body || typeof body !== 'object' || (body as { success?: unknown }).success !== true) {
+    throw new ApiClientError('SERVER_ERROR', 'The server returned an unexpected response. Please try again later.', res.status);
+  }
   return (body as { success: boolean; data: T }).data;
 }
 
@@ -88,9 +93,70 @@ function friendlyMessage(code?: string, fallback?: string): string {
   }
 }
 
+function abortError(): DOMException {
+  return new DOMException('Analysis cancelled.', 'AbortError');
+}
+
+function waitForPoll(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(abortError());
+    const done = (): void => {
+      signal?.removeEventListener('abort', cancel);
+      resolve();
+    };
+    const timer = setTimeout(done, ms);
+    const cancel = (): void => {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', cancel);
+      reject(abortError());
+    };
+    signal?.addEventListener('abort', cancel, { once: true });
+  });
+}
+
+/** Netlify requires quick response headers; probe in the background and poll. */
+async function analyzeInBackground(url: string, signal?: AbortSignal): Promise<AnalysisResult> {
+  if (signal?.aborted) throw abortError();
+  // Do not abort the initial request: if the server accepted it, we need its
+  // id in order to cancel the task when the input changes.
+  const { taskId } = await request<{ taskId: string }>('/media/analysis', {
+    method: 'POST', body: JSON.stringify({ url }),
+  });
+  let cancelled = false;
+  const cancel = (): void => {
+    if (cancelled) return;
+    cancelled = true;
+    void request(`/media/analysis/${taskId}`, { method: 'DELETE' }).catch(() => undefined);
+  };
+  if (signal?.aborted) {
+    cancel();
+    throw abortError();
+  }
+  signal?.addEventListener('abort', cancel, { once: true });
+  try {
+    const deadline = Date.now() + 90_000;
+    while (Date.now() < deadline) {
+      await waitForPoll(1_000, signal);
+      const state = await request<
+        { status: 'pending' } | { status: 'ready'; result: AnalysisResult }
+      >(`/media/analysis/${taskId}`, { signal });
+      if (state.status === 'ready') return state.result;
+    }
+    throw new ApiClientError('TIMEOUT', 'The request took too long. Please try again.', 504);
+  } catch (err) {
+    // If polling fails, don't leave a now-unobserved probe running.
+    cancel();
+    throw err;
+  } finally {
+    signal?.removeEventListener('abort', cancel);
+  }
+}
+
 export const api = {
   analyze: (url: string, signal?: AbortSignal) =>
-    request<AnalysisResult>('/media/analyze', { method: 'POST', body: JSON.stringify({ url }), signal }),
+    import.meta.env.VITE_ASYNC_ANALYSIS === 'true'
+      ? analyzeInBackground(url, signal)
+      : request<AnalysisResult>('/media/analyze', { method: 'POST', body: JSON.stringify({ url }), signal }),
 
   createDownload: (analysisId: string, format: string, quality: string) =>
     request<{ jobId: string; status: string }>('/downloads', {

@@ -2,8 +2,9 @@
 
 Base path: `/api/v1` · Content type: `application/json`
 
-Every successful response has the shape `{ "success": true, "data": … }`.
-Every error has the shape `{ "success": false, "error": { "code", "message" } }`.
+Most successful API responses have the shape `{ "success": true, "data": … }`;
+some mutations return only `{ "success": true }`. Health responses use their own
+`status` shape. Errors have `{ "success": false, "error": { "code", "message" } }`.
 
 ## Health
 
@@ -57,6 +58,19 @@ Formats reflect **only what the source reports** — never invented.
 
 Errors: `INVALID_URL`, `UNSUPPORTED_PLATFORM`, `PLATFORM_DISABLED`, `PRIVATE_CONTENT`,
 `CONTENT_UNAVAILABLE`, `ENGINE_UNAVAILABLE`, `TIMEOUT`, `RATE_LIMITED`, `SOURCE_UNAVAILABLE`.
+
+### Background analysis (for hosts with short response-header timeouts)
+
+- `POST /media/analysis` accepts the same `{ "url": "…" }` body and returns HTTP `202`:
+  `{ "success": true, "data": { "taskId": "…" } }`.
+- `GET /media/analysis/:taskId` returns `{ "success": true, "data": { "status": "pending" } }`
+  while processing, or `{ "status": "ready", "result": … }` in `data` when complete. The
+  result has the same shape as `/media/analyze`. A failed analysis returns the usual API error.
+- `DELETE /media/analysis/:taskId` best-effort cancels a running probe and removes its task.
+
+Tasks expire after five minutes and are process-local; a restart or instance replacement can
+make them disappear sooner. A missing task returns `NOT_FOUND`; start a new analysis. The
+Netlify frontend uses these endpoints, while the original synchronous endpoint stays available.
 
 ## Downloads
 

@@ -1,5 +1,6 @@
 import { env } from '../config/env.js';
 import { logger } from '../config/logger.js';
+import type { BackgroundWorkTracker } from '../utils/background.js';
 import { ApiError } from '../utils/errors.js';
 
 /**
@@ -9,7 +10,7 @@ import { ApiError } from '../utils/errors.js';
  */
 export interface JobQueue {
   readonly kind: 'bullmq' | 'local';
-  enqueue(jobId: string): Promise<void>;
+  enqueue(jobId: string, trackWork?: BackgroundWorkTracker): Promise<void>;
   shutdown(): Promise<void>;
 }
 
@@ -43,18 +44,20 @@ async function createBullQueue(handler: (jobId: string) => Promise<void>): Promi
 }
 
 function createLocalQueue(handler: (jobId: string) => Promise<void>): JobQueue {
-  const pending: string[] = [];
+  const pending: Array<{ jobId: string; finish: () => void }> = [];
   let running = 0;
   let stopped = false;
 
-  const pump = async (): Promise<void> => {
+  const pump = (): void => {
     while (!stopped && running < env.JOB_CONCURRENCY && pending.length > 0) {
-      const jobId = pending.shift()!;
+      const { jobId, finish } = pending.shift()!;
       running += 1;
-      handler(jobId)
+      // Also catch a handler that throws before returning a promise.
+      Promise.resolve().then(() => handler(jobId))
         .catch((err) => logger.error({ jobId, err }, 'Local queue job crashed'))
         .finally(() => {
           running -= 1;
+          finish();
           setImmediate(pump);
         });
     }
@@ -63,16 +66,24 @@ function createLocalQueue(handler: (jobId: string) => Promise<void>): JobQueue {
   logger.warn('REDIS_URL not set — using in-process queue (dev only; use Redis + BullMQ in production)');
   return {
     kind: 'local',
-    async enqueue(jobId) {
+    async enqueue(jobId, trackWork) {
       if (stopped) throw new ApiError('SERVER_ERROR', 'The download queue is stopping.');
       if (pending.length >= env.MAX_PENDING_JOBS) {
         throw new ApiError('JOB_LIMIT_REACHED', 'The download queue is full. Please try again shortly.');
       }
-      pending.push(jobId);
+      let finish = (): void => undefined;
+      if (trackWork) {
+        // Include time waiting in the queue as well as the running job. The
+        // host can keep the instance alive until this promise settles.
+        const completion = new Promise<void>((resolve) => { finish = resolve; });
+        trackWork(completion);
+      }
+      pending.push({ jobId, finish });
       setImmediate(pump);
     },
     async shutdown() {
       stopped = true;
+      for (const item of pending.splice(0)) item.finish();
     },
   };
 }

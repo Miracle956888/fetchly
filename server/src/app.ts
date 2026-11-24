@@ -12,11 +12,17 @@ import { apiLimiter } from './middleware/rateLimit.js';
 import { requestId } from './middleware/requestId.js';
 import { createApiRouter } from './routes/index.js';
 
-export function createApp(clientDistDir = env.CLIENT_DIST_DIR): express.Express {
+export function createApp(
+  clientDistDir = env.CLIENT_DIST_DIR,
+  options: { trustProxy?: number | boolean } = {},
+): express.Express {
   const app = express();
 
   app.disable('x-powered-by');
-  app.set('trust proxy', 1);
+  // Render sits behind a trusted reverse proxy. Netlify Server instead
+  // provides the visitor's IP directly on the socket; trusting forwarded
+  // headers there would let a client spoof IP-based limits.
+  app.set('trust proxy', options.trustProxy ?? 1);
 
   app.use(helmet({
     contentSecurityPolicy: {
@@ -57,6 +63,11 @@ export function createApp(clientDistDir = env.CLIENT_DIST_DIR): express.Express 
     }),
   );
 
+  app.use('/api/v1', (_req, res, next) => {
+    // Status, credentials and signed delivery URLs must never be cached.
+    res.setHeader('Cache-Control', 'no-store');
+    next();
+  });
   app.use('/api/v1', apiLimiter);
   app.use('/api/v1', createApiRouter());
 

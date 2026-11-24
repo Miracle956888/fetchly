@@ -4,6 +4,7 @@ import { db } from '../db/index.js';
 import { requireProvider } from '../providers/registry.js';
 import type { AnalysisRecord } from '../types/index.js';
 import { ApiError } from '../utils/errors.js';
+import { cancelledError, type CancellationFlag } from './engine/process.js';
 import { checkIncomingUrl } from '../utils/url.js';
 
 /**
@@ -12,7 +13,7 @@ import { checkIncomingUrl } from '../utils/url.js';
  */
 let activeAnalyses = 0;
 
-export async function analyzeUrl(rawUrl: unknown): Promise<AnalysisRecord> {
+export async function analyzeUrl(rawUrl: unknown, signal?: CancellationFlag): Promise<AnalysisRecord> {
   const check = checkIncomingUrl(rawUrl);
   if (!check.ok || !check.normalized) {
     throw new ApiError('INVALID_URL', check.reason ?? 'Invalid URL.');
@@ -34,7 +35,8 @@ export async function analyzeUrl(rawUrl: unknown): Promise<AnalysisRecord> {
   }
   activeAnalyses += 1;
   try {
-    const { info, plans } = await provider.analyzeWithPlans(check.normalized);
+    const { info, plans } = await provider.analyzeWithPlans(check.normalized, signal);
+    if (signal?.cancelled) throw cancelledError();
 
     if (info.formats.length === 0) {
       throw new ApiError('CONTENT_UNAVAILABLE', 'No downloadable media information was returned by the source.');

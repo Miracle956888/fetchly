@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { db } from '../db/index.js';
 import { cancelJob, createDownload, removeJob } from '../services/downloadService.js';
 import { asyncH } from '../utils/asyncH.js';
+import { backgroundTracker } from '../utils/background.js';
 import { ApiError } from '../utils/errors.js';
 import { signDeliveryToken, verifyDeliveryToken } from '../utils/deliveryToken.js';
 import { buildFileName } from '../utils/filename.js';
@@ -32,7 +33,7 @@ export const create = asyncH(async (req: Request, res: Response) => {
     format: body.format,
     quality: body.quality,
     ipKey: ipKeyOf(req),
-  });
+  }, backgroundTracker(req));
   res.status(201).json({ success: true, data: { jobId: job.id, status: job.status.toLowerCase() } });
 });
 

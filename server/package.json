@@ -19,6 +19,7 @@
     "schema": "prisma/schema.prisma"
   },
   "dependencies": {
+    "@netlify/server": "0.1.6",
     "@prisma/client": "^5.22.0",
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.34.0",

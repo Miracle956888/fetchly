@@ -163,6 +163,14 @@ from the same HTTPS origin. See **[docs/RENDER.md](docs/RENDER.md)** for the das
 post-deploy checks, security caveats and important free-tier limits. Render can only deploy a
 branch that has been committed and pushed to GitHub.
 
+## Netlify Server experiment
+
+A separate, experimental Netlify Server configuration runs the frontend and API on Netlify
+instead of proxying to Render. It requires Early Access eligibility, private runtime secrets and
+careful testing; its in-memory jobs and temporary files are disposable. See
+**[docs/NETLIFY.md](docs/NETLIFY.md)** for setup, limitations and live-deploy checks. A different
+cloud IP does not guarantee that a source will allow downloads.
+
 ## Docker deployment
 
 The existing Compose stack is a separate, more involved setup; it was not validated as part of the

@@ -1,12 +1,21 @@
-# Netlify config for the Fetchly frontend (static SPA).
-# Easiest: build locally, then drag the client/dist folder onto
-# https://app.netlify.com/drop — no repo, no card.
-
+# Experimental single-instance Netlify Server beta. This is separate from
+# Render; see docs/NETLIFY.md for required runtime secrets and limitations.
 [build]
-  command = "npm ci && npm run build -w client"
+  command = "VITE_API_ORIGIN='' VITE_ASYNC_ANALYSIS=true npm run build && python3 scripts/netlify-binaries.py"
   publish = "client/dist"
 
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+[build.environment]
+  # Netlify Server runs the same Node major version used by the build.
+  NODE_VERSION = "24"
+
+[server]
+  size = "small"
+  # The API uses local files plus in-memory state; multiple live instances
+  # would send subsequent polling/delivery requests to the wrong instance.
+  includedFiles = ["netlify/server/bin/**", "client/dist/**"]
+
+[server.scale]
+  max = 1
+
+# Do not add a catch-all SPA rewrite: rewrites run before Netlify Server and
+# would swallow /api requests. The server provides the deep-link fallback.

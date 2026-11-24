@@ -12,6 +12,8 @@ interface GuardedProcessOptions {
   unavailableMessage: string;
   startErrorMessage: string;
   signal?: CancellationFlag;
+  /** Isolate subprocess temp files so callers can remove them after a kill. */
+  temporaryDirectory?: string;
   // A throwing check aborts the entire process group, not just the parent.
   checkLimit?: () => Promise<void>;
   onStdout?: (text: string) => void;
@@ -58,6 +60,13 @@ export function runGuarded(
     const child = spawn(binary, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
       detached: process.platform !== 'win32',
+      env: options.temporaryDirectory
+        ? {
+            ...process.env,
+            TMPDIR: options.temporaryDirectory,
+            ...(process.platform === 'win32' ? { TEMP: options.temporaryDirectory, TMP: options.temporaryDirectory } : {}),
+          }
+        : process.env,
     });
     let stdout = '';
     let stderr = '';
