@@ -20,9 +20,7 @@ export const apiLimiter = rateLimit({
   // Job polling and token-protected delivery use their own lenient limiter.
   skip: (req) =>
     req.method === 'GET' &&
-    (req.path === '/health' ||
-      /^\/downloads\/[^/]+(\/file)?$/.test(req.path) ||
-      /^\/media\/analysis\/[^/]+$/.test(req.path)),
+    (req.path === '/health' || /^\/downloads\/[^/]+(\/file)?$/.test(req.path)),
 });
 
 /** Lenient limiter for progress polling + file delivery. */

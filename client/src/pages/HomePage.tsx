@@ -242,11 +242,7 @@ export default function HomePage() {
               );
             })}
             {(platforms.data ?? []).length === 0 && (
-              <li className="col-span-full text-sm text-ink-soft" role={platforms.isError ? 'alert' : undefined}>
-                {platforms.isError
-                  ? 'Could not load platforms. Please refresh or try again later.'
-                  : platforms.isPending ? 'Platform list is loading…' : 'No platforms are currently available.'}
-              </li>
+              <li className="col-span-full text-sm text-ink-soft">Platform list is loading…</li>
             )}
           </ul>
         </div>

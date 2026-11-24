@@ -8,7 +8,6 @@ import type { FormatPlan } from '../providers/types.js';
 import { requireProvider } from '../providers/registry.js';
 import type { JobQueue } from '../queues/index.js';
 import type { DownloadJobRecord } from '../types/index.js';
-import type { BackgroundWorkTracker } from '../utils/background.js';
 import { ApiError } from '../utils/errors.js';
 import { buildFileName } from '../utils/filename.js';
 import * as ffmpeg from './engine/ffmpeg.js';
@@ -55,7 +54,7 @@ export interface CreateDownloadInput {
   ipKey: string;
 }
 
-export async function createDownload(input: CreateDownloadInput, trackWork?: BackgroundWorkTracker): Promise<DownloadJobRecord> {
+export async function createDownload(input: CreateDownloadInput): Promise<DownloadJobRecord> {
   if (!queue) throw new ApiError('SERVER_ERROR', 'Download queue is not initialised.');
   ensureDirs();
 
@@ -104,7 +103,7 @@ export async function createDownload(input: CreateDownloadInput, trackWork?: Bac
     analysisId: analysis.id,
   });
   try {
-    await queue.enqueue(jobId, trackWork);
+    await queue.enqueue(jobId);
   } catch (err) {
     // Do not leave an unreachable QUEUED record when admission is rejected.
     await db().deleteJob(jobId);
@@ -261,7 +260,7 @@ export async function cancelJob(jobId: string): Promise<DownloadJobRecord> {
   return (await db().getJob(jobId))!;
 }
 
-export async function retryJob(jobId: string, trackWork?: BackgroundWorkTracker): Promise<DownloadJobRecord> {
+export async function retryJob(jobId: string): Promise<DownloadJobRecord> {
   const job = await db().getJob(jobId);
   if (!job) throw ApiError.notFound('Download job not found.');
   if (!['FAILED', 'CANCELLED', 'EXPIRED'].includes(job.status)) {
@@ -284,7 +283,7 @@ export async function retryJob(jobId: string, trackWork?: BackgroundWorkTracker)
     expiresAt: new Date(Date.now() + env.DOWNLOAD_EXPIRATION_MINUTES * 60_000),
   });
   try {
-    await queue.enqueue(jobId, trackWork);
+    await queue.enqueue(jobId);
   } catch (err) {
     await db().updateJob(jobId, {
       status: job.status,

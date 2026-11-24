@@ -9,7 +9,6 @@ import * as ffmpeg from '../services/engine/ffmpeg.js';
 import * as ytdlp from '../services/engine/ytdlp.js';
 import { listPlatforms, setPlatformEnabled } from '../services/platformService.js';
 import { asyncH } from '../utils/asyncH.js';
-import { backgroundTracker } from '../utils/background.js';
 import { ApiError } from '../utils/errors.js';
 
 const COOKIE_OPTS = {
@@ -83,7 +82,7 @@ export const jobCancel = asyncH(async (req: Request, res: Response) => {
 });
 
 export const jobRetry = asyncH(async (req: Request, res: Response) => {
-  const job = await retryJob(req.params.id, backgroundTracker(req));
+  const job = await retryJob(req.params.id);
   res.json({ success: true, data: job });
 });
 

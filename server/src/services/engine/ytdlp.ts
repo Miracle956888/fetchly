@@ -1,10 +1,10 @@
-import { randomUUID } from 'node:crypto';
+import { spawn } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { env } from '../../config/env.js';
 import { logger } from '../../config/logger.js';
 import { ApiError } from '../../utils/errors.js';
-import { assertWorkSize, beginTempWork, endTempWork } from '../storage.js';
+import { assertWorkSize } from '../storage.js';
 import { runGuarded, type CancellationFlag } from './process.js';
 
 /**
@@ -51,16 +51,13 @@ export interface YtDlpInfo {
   formats?: YtDlpFormat[];
 }
 
-async function run(
-  args: string[], timeoutMs: number, signal?: CancellationFlag, temporaryDirectory?: string,
-): Promise<string> {
+async function run(args: string[], timeoutMs: number, signal?: CancellationFlag): Promise<string> {
   const result = await runGuarded(binary(), args, {
     timeoutMs,
     timeoutMessage: 'The media engine took too long to respond.',
     unavailableMessage: 'The media engine is not installed on this server.',
     startErrorMessage: 'Media engine error.',
     signal,
-    temporaryDirectory,
   });
   if (result.code === 0) return result.stdout;
   logger.error({ code: result.code, stderr: safeStderr(result.stderr) }, 'yt-dlp exited non-zero');
@@ -118,59 +115,24 @@ function classifyYtDlpFailure(stderr: string): ApiError {
   return new ApiError('DOWNLOAD_FAILED', 'The media could not be processed.');
 }
 
-/**
- * Standalone yt-dlp extracts its Python runtime under TMPDIR. SIGKILL on a
- * timeout/cancellation skips the bootloader's cleanup, so each probe gets an
- * owned directory we can remove even after its process group is stopped.
- */
-async function withProbeTemp<T>(kind: string, work: (dir: string) => Promise<T>): Promise<T> {
-  const id = `${kind}-${randomUUID()}`;
-  const dir = await beginTempWork(id);
-  try {
-    return await work(dir);
-  } finally {
-    await endTempWork(id);
-  }
-}
-
-type EngineHealth = { available: boolean; version: string | null };
-let cachedHealth: { binary: string; value: EngineHealth; until: number } | undefined;
-let pendingHealth: { binary: string; promise: Promise<EngineHealth> } | undefined;
-
-export async function checkAvailable(): Promise<EngineHealth> {
-  const engine = binary();
-  if (cachedHealth?.binary === engine && cachedHealth.until > Date.now()) return cachedHealth.value;
-  if (pendingHealth?.binary === engine) return pendingHealth.promise;
-
-  // A standalone engine can extract tens of MB at startup. Share concurrent
-  // health checks and briefly cache the result instead of spawning a process
-  // (and filling /tmp) for every public health request.
-  const promise = (async (): Promise<EngineHealth> => {
-    try {
-      return await withProbeTemp('health', async (temporaryDirectory) => {
-        const result = await runGuarded(engine, ['--version'], {
-          timeoutMs: 5000,
-          timeoutMessage: 'Media engine health check timed out.',
-          unavailableMessage: 'The media engine is not installed on this server.',
-          startErrorMessage: 'Media engine health check failed.',
-          temporaryDirectory,
-        });
-        return { available: result.code === 0, version: result.code === 0 ? result.stdout.trim() : null };
-      });
-    } catch {
-      return { available: false, version: null };
-    }
-  })();
-  pendingHealth = { binary: engine, promise };
-  try {
-    const value = await promise;
-    if (pendingHealth?.promise === promise) {
-      cachedHealth = { binary: engine, value, until: Date.now() + (value.available ? 30_000 : 5_000) };
-    }
-    return value;
-  } finally {
-    if (pendingHealth?.promise === promise) pendingHealth = undefined;
-  }
+export async function checkAvailable(): Promise<{ available: boolean; version: string | null }> {
+  return new Promise((resolve) => {
+    const child = spawn(binary(), ['--version'], { stdio: ['ignore', 'pipe', 'ignore'] });
+    let out = '';
+    const timer = setTimeout(() => {
+      child.kill('SIGKILL');
+      resolve({ available: false, version: null });
+    }, 5000);
+    child.stdout.on('data', (d) => (out += d));
+    child.on('error', () => {
+      clearTimeout(timer);
+      resolve({ available: false, version: null });
+    });
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      resolve({ available: code === 0, version: code === 0 ? out.trim() : null });
+    });
+  });
 }
 
 const COMMON_ARGS = [
@@ -185,19 +147,16 @@ const COMMON_ARGS = [
 
 /** Metadata-only analysis. */
 export async function probeUrl(url: string, signal?: CancellationFlag): Promise<YtDlpInfo> {
-  return withProbeTemp('probe', async (temporaryDirectory) => {
-    const out = await run(
-      ['--dump-single-json', '--skip-download', ...COMMON_ARGS, url],
-      60_000,
-      signal,
-      temporaryDirectory,
-    );
-    try {
-      return JSON.parse(out) as YtDlpInfo;
-    } catch {
-      throw new ApiError('SOURCE_UNAVAILABLE', 'The source returned unreadable metadata.');
-    }
-  });
+  const out = await run(
+    ['--dump-single-json', '--skip-download', ...COMMON_ARGS, url],
+    60_000,
+    signal,
+  );
+  try {
+    return JSON.parse(out) as YtDlpInfo;
+  } catch {
+    throw new ApiError('SOURCE_UNAVAILABLE', 'The source returned unreadable metadata.');
+  }
 }
 
 export interface StreamDownloadProgress {
@@ -291,9 +250,6 @@ export async function downloadStreams(
     unavailableMessage: 'The media engine is not installed on this server.',
     startErrorMessage: 'Download failed to start.',
     signal,
-    // The job cleanup also removes extracted standalone-runtime files if the
-    // engine is killed before its own cleanup can run.
-    temporaryDirectory: workDir,
     checkLimit: () => assertWorkSize(workDir, maxBytes),
     captureStdout: false,
     onStdout: (chunk) => {

@@ -127,6 +127,12 @@ a sitemap for that domain. Render may serve a disallow-all `robots.txt` while a 
   cannot clear that challenge. Update the pinned yt-dlp/EJS versions when appropriate, but do not
   assume an update will resolve a platform block. Remove private URLs and secrets before sharing
   diagnostic logs; never share passwords or browser cookies.
+- **Checking an engine update:** deploy the Git commit that updates the Dockerfile, then compare
+  `/api/v1/health/engine` with the `yt-dlp[default]` version pinned in that commit. A **restart**
+  reuses the existing image and does not install a new version. A Render dashboard deploy of a
+  specific commit disables automatic deploys; check that setting afterward. This beta stores jobs
+  and files in memory/on temporary disk, so they can be lost during a redeploy. Once the expected
+  version is live, test a small permitted video; a green health check only means the engine starts.
 - **Storage full or queue full:** wait for work to finish or files to expire, use smaller media,
   and inspect the service's resource metrics. The `MIN_FREE_DISK_MB` threshold is a safeguard, not
   a guarantee of available disk space.

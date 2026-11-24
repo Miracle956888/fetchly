@@ -38,38 +38,4 @@ describe('local queue admission', () => {
     }
     await expect(queue.enqueue('after-shutdown')).rejects.toMatchObject({ code: 'SERVER_ERROR' });
   });
-
-  it('tracks queued and running work until completion, including shutdown', async () => {
-    env.REDIS_URL = undefined;
-    env.JOB_CONCURRENCY = 1;
-    env.MAX_PENDING_JOBS = 1;
-    const started: string[] = [];
-    const tracked: Array<Promise<void>> = [];
-    let release!: () => void;
-    const queue = await createJobQueue(async (id) => {
-      started.push(id);
-      await new Promise<void>((resolve) => { release = resolve; });
-    });
-    const track = (work: Promise<void>) => { tracked.push(work); };
-    await queue.enqueue('running', track);
-    await vi.waitFor(() => expect(started).toEqual(['running']));
-    await queue.enqueue('waiting', track);
-    await expect(queue.enqueue('rejected', track)).rejects.toMatchObject({ code: 'JOB_LIMIT_REACHED' });
-    expect(tracked).toHaveLength(2);
-    let runningDone = false;
-    let waitingDone = false;
-    void tracked[0].then(() => { runningDone = true; });
-    void tracked[1].then(() => { waitingDone = true; });
-    await Promise.resolve();
-    expect(runningDone).toBe(false);
-    expect(waitingDone).toBe(false);
-    await queue.shutdown();
-    await tracked[1];
-    expect(waitingDone).toBe(true);
-    expect(runningDone).toBe(false);
-    release();
-    await tracked[0];
-    expect(runningDone).toBe(true);
-    expect(started).toEqual(['running']);
-  });
 });
