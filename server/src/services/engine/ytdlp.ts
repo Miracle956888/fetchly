@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { env } from '../../config/env.js';
 import { logger } from '../../config/logger.js';
+import { isYouTubeUrl } from '../../providers/youtubeHosts.js';
 import { ApiError } from '../../utils/errors.js';
 import { assertWorkSize } from '../storage.js';
 import { runGuarded, type CancellationFlag } from './process.js';
@@ -145,10 +146,31 @@ const COMMON_ARGS = [
   ...(env.YTDLP_JS_RUNTIME ? ['--js-runtimes', env.YTDLP_JS_RUNTIME] : []),
 ];
 
+/**
+ * Experimental, anonymous YouTube profile. The pinned yt-dlp release supports
+ * `default` (its usual clients) plus `ios_producer`. It is deliberately a
+ * single fixed profile, not user-provided extractor options. The opt-in also
+ * excludes local config, account cookies and plugins; EJS remains available.
+ * Other platforms and the default profile keep their original invocation.
+ */
+function engineArgsFor(url: string): string[] {
+  const useExperimentalProfile = env.YTDLP_YOUTUBE_CLIENT_PROFILE === 'ios-producer' && isYouTubeUrl(url);
+  return [
+    ...COMMON_ARGS,
+    ...(useExperimentalProfile ? [
+      '--ignore-config',
+      '--no-cookies',
+      '--no-cookies-from-browser',
+      '--no-plugin-dirs',
+      '--extractor-args', 'youtube:player_client=default,ios_producer',
+    ] : []),
+  ];
+}
+
 /** Metadata-only analysis. */
 export async function probeUrl(url: string, signal?: CancellationFlag): Promise<YtDlpInfo> {
   const out = await run(
-    ['--dump-single-json', '--skip-download', ...COMMON_ARGS, url],
+    ['--dump-single-json', '--skip-download', ...engineArgsFor(url), url],
     60_000,
     signal,
   );
@@ -213,7 +235,7 @@ export async function downloadStreams(
     '--print', `after_move:${marker}%(filepath)s`,
     // --print implies --quiet; undo it so size-skip messages are observable.
     '--no-quiet',
-    ...COMMON_ARGS,
+    ...engineArgsFor(url),
     ...(env.FFMPEG_PATH ? ['--ffmpeg-location', env.FFMPEG_PATH] : []),
     '-o', outTemplate,
     url,
