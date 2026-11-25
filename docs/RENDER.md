@@ -66,6 +66,7 @@ seeded from the environment again each time the in-memory store starts.
 | `DOWNLOAD_TIMEOUT_SECONDS` | `300` | Maximum yt-dlp download and merge time; the separate metadata probe has a 60-second timeout. |
 | `PROCESS_TIMEOUT_SECONDS` | `300` | Maximum FFmpeg processing time. |
 | `MIN_FREE_DISK_MB` | `256` | Reject new jobs when reported free space falls below this threshold. |
+| `YTDLP_YOUTUBE_CLIENT_PROFILE` | `default` (unset) | Optional experimental YouTube-only profile; see below. |
 
 A completed file normally expires after 30 minutes, but spin-down can erase it **sooner**. Failed,
 cancelled and timed-out jobs clean their temporary directories and partial output. yt-dlp's
@@ -79,6 +80,60 @@ cookies work without setting `CLIENT_URL`. If you use a different frontend origi
 CORS and cookie behavior deliberately; do not assume this beta setup supports cross-site admin
 login. If adding a custom domain while still serving everything on that one domain, use its HTTPS
 URL to access the app.
+
+## Optional YouTube compatibility experiment
+
+**This is an unverified experiment, not a fix for a bot check.** It is off by default and is not
+set in the Blueprint. Do not deploy or enable it without approving the test first. YouTube can
+still require sign-in or block this server's IP; the experiment cannot clear a challenge, grant
+access to restricted media, or make extraction reliable. Only test media you own or may save.
+
+The pinned yt-dlp `2026.11.23` includes an additional `ios_producer` player client. When
+`YTDLP_YOUTUBE_CLIENT_PROFILE=ios-producer` is set, the engine requests its normal default clients
+**plus** that client for recognized YouTube URLs, for both metadata and stream downloads. The
+[upstream client proposal](https://github.com/yt-dlp/yt-dlp/pull/17866) says it returns only
+H.264/MP4A formats and does not require a PO token; the available formats or behavior can change. yt-dlp may already choose this client as a fallback in some cases,
+so the experiment does not necessarily change the result. There is no extra provider, HTTP port,
+account login, or user-supplied engine argument. For this profile only, yt-dlp configuration files,
+third-party plugins and loading account cookies from files or a browser are disabled; yt-dlp's
+bundled EJS and configured Node runtime remain available. Anonymous HTTP session cookies may still
+be used internally by yt-dlp.
+
+This is deliberately smaller than adding a third-party PO-token service: the
+[provider's own documentation](https://github.com/Brainicism/bgutil-ytdlp-pot-provider) says a token
+cannot overcome an IP-based sign-in restriction and may never be consulted if the player request
+fails first. An extra client may issue several additional upstream requests, increasing latency and
+bandwidth or triggering source rate limits. The existing 60-second metadata deadline, download
+timeout, queue and admission limits remain; they are not a hard bandwidth cap. One public analysis
+and one job's separate re-probe can still run simultaneously on the beta service. Free-tier CPU and
+memory constraints remain relevant. The experiment has not been verified against Render or a real
+YouTube download.
+
+After an operator explicitly approves a test, prefer a disposable test service and use the same
+small public video you are allowed to save for both runs:
+
+1. Confirm the candidate image uses `yt-dlp` `2026.11.23`; leave the setting unset for the baseline.
+   Record whether analysis succeeds, which formats are offered and how long it takes. A green
+   engine health check is **not** an analysis or download test.
+2. Set `YTDLP_YOUTUBE_CLIENT_PROFILE=ios-producer` in that test service's Environment and let
+   Render apply/redeploy the configuration. Its startup log records `youtubeClientProfile` as a
+   configuration value, not proof YouTube accepted it. If running a separate worker, configure the
+   same profile there. Changing environment values or redeploying can discard the beta's in-memory
+   jobs and files; a new service or deploy can also use a different outbound IP.
+3. Analyze the same video again. If formats appear, actually download and play a small MP4 and an
+   MP3, and watch Render's time, memory, CPU and bandwidth metrics. Analysis alone is not evidence
+   that stream downloads work. Avoid repeated rapid retries. Compare both runs and record any
+   sanitized error category without sharing source URLs, account data, cookies or other secrets.
+4. Remove the setting or change it to `default` and apply the change to roll back. If YouTube still
+   asks for sign-in, stop the experiment: the server cannot complete that verification. For your
+   own uploads, YouTube Studio or Google Takeout may offer an owner download instead.
+
+Use only the documented `default` or `ios-producer` values; invalid values stop startup. Do not
+supply credentials or cookies. With yt-dlp `2026.11.23` and Node 22+ installed locally,
+`python scripts/check-youtube-profile.py` checks the client selection and account-config isolation
+**offline**; it does not test a source or the Render network. Upgrading yt-dlp requires rechecking
+the profile and repeating the real-source test. Render preview services may inherit production
+environment variables; do not use production data for an isolated test.
 
 ## Free-tier limits and risk
 

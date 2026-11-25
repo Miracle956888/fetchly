@@ -4,6 +4,7 @@
  * Runs the BullMQ download worker + cleanup worker separately from the API
  * server, so FFmpeg processing never competes with request handling.
  */
+import { env } from '../config/env.js';
 import { initDatastore } from '../db/index.js';
 import { logger } from '../config/logger.js';
 import { createJobQueue } from '../queues/index.js';
@@ -15,7 +16,7 @@ async function main(): Promise<void> {
   const queue = await createJobQueue(processJob);
   bindQueue(queue); // only used if this process also accepts retry requests
   startCleanupWorker();
-  logger.info({ queue: queue.kind }, 'Standalone worker running');
+  logger.info({ queue: queue.kind, youtubeClientProfile: env.YTDLP_YOUTUBE_CLIENT_PROFILE }, 'Standalone worker running');
 
   const shutdown = async (): Promise<void> => {
     logger.info('Worker shutting down');

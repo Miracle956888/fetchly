@@ -55,6 +55,8 @@ const EnvSchema = z.object({
   FFMPEG_PATH: z.string().optional(),
   YTDLP_PATH: z.string().optional(),
   YTDLP_JS_RUNTIME: z.enum(['node', 'deno', 'quickjs']).optional(),
+  // Opt-in only; the default preserves yt-dlp's existing client selection.
+  YTDLP_YOUTUBE_CLIENT_PROFILE: z.enum(['default', 'ios-producer']).default('default'),
 }).superRefine((config, ctx) => {
   if (config.NODE_ENV !== 'production') return;
   if (config.JWT_SECRET === 'dev-only-insecure-secret-change-me') {

@@ -18,7 +18,12 @@ async function main(): Promise<void> {
 
   const server = app.listen(env.PORT, '0.0.0.0', () => {
     logger.info(
-      { port: env.PORT, env: env.NODE_ENV, clientUrl: env.CLIENT_URL },
+      {
+        port: env.PORT,
+        env: env.NODE_ENV,
+        clientUrl: env.CLIENT_URL,
+        youtubeClientProfile: env.YTDLP_YOUTUBE_CLIENT_PROFILE,
+      },
       'Fetchly API listening',
     );
   });
